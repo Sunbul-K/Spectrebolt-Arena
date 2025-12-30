@@ -15,23 +15,39 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(__dirname));
 
 let players = {};
+let bots = {};
 
-// server.js correction
+const walls = [
+    { x: -500, y: -200, w: 300, h: 40 },
+    { x: 200, y: 300, w: 40, h: 300 },
+    { x: -1000, y: 600, w: 600, h: 40 }
+];
+
+function collidesWithWall(x, y, radius = 20) {
+    return walls.some(w =>
+        x + radius > w.x &&
+        x - radius < w.x + w.w &&
+        y + radius > w.y &&
+        y - radius < w.y + w.h
+    );
+}
+
 io.on('connection', (socket) => {
     console.log('A sniper has entered the arena!');
-    
-    // Initialize with all properties at once
-    players[socket.id] = { 
-        x: 400, 
-        y: 300, 
-        angle: 0, 
-        color: socket.id === Object.keys(players)[0] ? 'blue' : 'red', // Dynamic color
-        health: 100,
-        score: 0 
-    };
-    
-    socket.emit('currentPlayers', players);
-    socket.broadcast.emit('newPlayer', { id: socket.id, playerInfo: players[socket.id] });
+
+    socket.on('joinGame', (data) => {
+        players[socket.id] = { 
+            x: Math.random() * 600 - 300, 
+            y: Math.random() * 600 - 300, 
+            angle: 0, 
+            color: Object.keys(players).length === 0 ? 'blue' : 'red',
+            health: 100,
+            score: 0,
+            name: data.name || "Player"
+        };
+        socket.emit('currentPlayers', players);
+        socket.broadcast.emit('newPlayer', { id: socket.id, playerInfo: players[socket.id] });
+    });
 
     socket.on('move', (movementData) => {
         if (players[socket.id]) {
@@ -39,10 +55,7 @@ io.on('connection', (socket) => {
             players[socket.id].y = movementData.y;
             players[socket.id].angle = movementData.angle;
             socket.broadcast.emit('enemyMoved', { 
-                id: socket.id, 
-                x: movementData.x, 
-                y: movementData.y, 
-                angle: movementData.angle 
+                id: socket.id, x: movementData.x, y: movementData.y, angle: movementData.angle 
             });
         }
     });
@@ -52,103 +65,102 @@ io.on('connection', (socket) => {
     });
 
     socket.on('playerHit', (targetId) => {
-    if (players[targetId]) {
-        players[targetId].health -= 10;
-        
-        // Check if THIS specific player died
-        if (players[targetId].health <= 0) {
-            players[targetId].health = 0; // Don't let it go negative
-            players[socket.id].score += 1;
-        }
+        let shooter = players[socket.id];
+        let target = players[targetId];
 
-        // Send updates to everyone
-        io.emit('updateStats', {
-            id: targetId,
-            health: players[targetId].health,
-            shooterId: socket.id,
-            score: players[socket.id].score
-        });
-
-        // --- THE WIN CHECK ---
-        let alivePlayers = Object.values(players).filter(p => p.health > 0);
-        
-        // If it's a 1v1 and only 1 player remains, or everyone is dead
-        if (alivePlayers.length <= 1 && Object.keys(players).length > 1) {
-            io.emit('gameOver', "Round Over!");
+        if (shooter && target) {
+            target.health -= 10;
             
-            setTimeout(() => {
-                Object.keys(players).forEach(id => players[id].health = 100);
-                // Send a full reset signal
-                io.emit('currentPlayers', players);
-            }, 3000);
+            if (target.health <= 0) {
+                target.health = 0; 
+                shooter.score += 1;
+                
+                // --- KILL FEED TRIGGER ---
+                io.emit('killEvent', { killer: shooter.name, victim: target.name });
+
+                // --- WIN CHECK (15 KILLS) ---
+                if (shooter.score >= 15) {
+                    io.emit('gameOver', { 
+                        message: `${shooter.name} HAS WON!`, 
+                        winnerColor: shooter.color 
+                    });
+                    
+                    setTimeout(() => {
+                        Object.keys(players).forEach(id => {
+                            players[id].score = 0;
+                            players[id].health = 100;
+                            players[id].x = 0; 
+                            players[id].y = 0;
+                        });
+                        io.emit('currentPlayers', players);
+                    }, 5000);
+                }
+            }
+
+            io.emit('updateStats', {
+                id: targetId,
+                health: target.health,
+                shooterId: socket.id,
+                score: shooter.score
+            });
         }
-    }
-});
+    });
 
     socket.on('disconnect', () => {
         delete players[socket.id];
         io.emit('playerDisconnected', socket.id);
     });
 });
-let bots = {};
 
-// Function to spawn a bot
+// --- BOT LOGIC ---
 function spawnBot(id) {
-    bots[id] = {
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-        angle: 0,
-        health: 50,
-        color: 'green',
-        type: 'bot'
-    };
+    bots[id] = { x: 500, y: 500, angle: 0, health: 50, color: 'green', name: "Bot" };
 }
-
-// Initial bot
 spawnBot('bot_1');
 
-// Bot Logic Loop 
 setInterval(() => {
     Object.keys(bots).forEach(botId => {
         let bot = bots[botId];
-        
-        // Find the nearest player to target
         let target = null;
         let minDist = Infinity;
         
-        Object.keys(players).forEach(playerId => {
-            let p = players[playerId];
-            let dist = Math.sqrt((p.x - bot.x)**2 + (p.y - bot.y)**2);
-            if (dist < minDist) {
-                minDist = dist;
-                target = p;
-            }
+        Object.keys(players).forEach(pId => {
+            let p = players[pId];
+            let d = Math.sqrt((p.x - bot.x)**2 + (p.y - bot.y)**2);
+            if (d < minDist) { minDist = d; target = p; }
         });
 
         if (target) {
-            // Aim at target
             bot.angle = Math.atan2(target.y - bot.y, target.x - bot.x);
             
-            // Move toward target if too far away
             if (minDist > 200) {
-                bot.x += Math.cos(bot.angle) * 2;
-                bot.y += Math.sin(bot.angle) * 2;
+                let nextX = bot.x + Math.cos(bot.angle) * 2;
+                let nextY = bot.y + Math.sin(bot.angle) * 2;
+                
+                if (!collidesWithWall(nextX, nextY)) {
+                    bot.x = nextX;
+                    bot.y = nextY;
+                } else {
+                    // Smart Slide: try 45-degree angles to get around the wall
+                    for (let angleOffset of [Math.PI/4, -Math.PI/4]) {
+                        let slideAngle = bot.angle + angleOffset;
+                        let slideX = bot.x + Math.cos(slideAngle) * 2;
+                        let slideY = bot.y + Math.sin(slideAngle) * 2;
+                        if (!collidesWithWall(slideX, slideY)) {
+                            bot.x = slideX;
+                            bot.y = slideY;
+                            break;
+                        }
+                    }
+                }
             }
 
-            // Randomly shoot
-            if (Math.random() < 0.05) {
-                io.emit('enemyShoot', { 
-                    x: bot.x, y: bot.y, angle: bot.angle, speed: 10, timer: 100 
-                });
+            if (Math.random() < 0.03) {
+                io.emit('enemyShoot', { x: bot.x, y: bot.y, angle: bot.angle, speed: 700, timer: 2 });
             }
         }
     });
-
-    // Tell all players where the bots are
     io.emit('botUpdate', bots);
 }, 50);
 
-
-http.listen(PORT, () => {
-    console.log(`SniArena live at http://localhost:${PORT}`);
-});
+http.listen(PORT, () => { console.log(`SniArena live at PORT ${PORT}`); });

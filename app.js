@@ -8,6 +8,21 @@ const canvas = document.getElementById('gameCanvas');
 const contx = canvas.getContext('2d');
 const socket = io(); // Connect to server
 
+
+let myName = "Player";
+let gameStarted = false;
+
+document.getElementById('startButton').addEventListener('click', () => {
+    const input = document.getElementById('nameInput').value;
+    if (input.trim() !== "") {
+        myName = input;
+        document.getElementById('nameScreen').style.display = 'none';
+        gameStarted = true;
+        socket.emit('joinGame', { name: myName }); // Tell server who we are
+        gameLoop(); // Start the loop ONLY now
+    }
+});
+
 let lastTime = performance.now();
 let player = { x: 400, y: 300, color: 'blue', angle: 0 };
 let bullets = [];
@@ -19,6 +34,14 @@ const MAP = {
     minY: -2000,
     maxY:  2000
 };
+
+const walls = [
+    { x: -500, y: -200, w: 300, h: 40 },
+    { x: 200, y: 300, w: 40, h: 300 },
+    { x: -1000, y: 600, w: 600, h: 40 }
+];
+
+let muzzleFlashTimer = 0;
 
 
 const keys = { w: false, a: false, s: false, d: false };
@@ -48,11 +71,38 @@ socket.on('playerDisconnected', (id) => {
     delete enemies[id];
 });
 
+socket.on('killEvent', (data) => {
+    const feed = document.getElementById('killFeed');
+    const entry = document.createElement('div');
+    
+    entry.style.background = "rgba(0, 0, 0, 0.6)";
+    entry.style.color = "#ff4444";
+    entry.style.padding = "5px 10px";
+    entry.style.marginBottom = "5px";
+    entry.style.borderRadius = "3px";
+    entry.style.borderRight = "4px solid white";
+    
+    entry.innerHTML = `<span style="color:#00ff44">${data.killer}</span> sniped <span style="color:white">${data.victim}</span>`;
+    
+    feed.appendChild(entry);
+
+    // Remove the message after 4 seconds
+    setTimeout(() => {
+        entry.style.opacity = '0';
+        entry.style.transition = 'opacity 0.5s ease';
+        setTimeout(() => entry.remove(), 500);
+    }, 4000);
+});
+
 function drawEnemies() {
     Object.keys(enemies).forEach((id) => {
         let e = enemies[id];
         contx.save();
         contx.translate(e.x, e.y);
+        contx.fillStyle = "white";
+        contx.textAlign = "center";
+        contx.font = "14px Arial";
+        contx.fillText(e.name || "Enemy", 0, -30);
         contx.rotate(e.angle);
         contx.fillStyle = 'red'; // Enemy color
         contx.beginPath();
@@ -120,11 +170,18 @@ window.addEventListener('mousedown', (e) => {
 // Movement Function
 
 function handle_movement(deltaTime) {
+    let oldX=player.x
+    let oldY=player.y
     const speed = 300; //pixels per sec
     if (keys.w) player.y -= speed*deltaTime;
     if (keys.s) player.y += speed*deltaTime;
     if (keys.a) player.x -= speed*deltaTime;
     if (keys.d) player.x += speed*deltaTime; 
+
+    if(collidesWithWall(player.x,player.y)){
+        player.x=oldX
+        player.y=oldY
+    }
 
     if (keys.w || keys.a || keys.s || keys.d) {
         socket.emit('move', { x: player.x, y: player.y, angle: player.angle });
@@ -140,6 +197,7 @@ function shoot() {
     let now=performance.now()/1000
     if (now-lastshot<fireRate) return;
     lastshot=now
+    muzzleFlashTimer = 5;
     const bulletData = {
         x: player.x,
         y: player.y,
@@ -156,10 +214,10 @@ function shoot() {
 function updateLeaderboardUI() {
     document.getElementById('healthVal').innerText = player.health || 100;
     
-    // Simple leaderboard update
-    let scoreText = "Scores: You (" + (player.score || 0) + ")";
+    let scoreText = `Scores: ${myName} (${player.score || 0})`;
     Object.keys(enemies).forEach(id => {
-        scoreText += " | Enemy (" + (enemies[id].score || 0) + ")";
+        let name = enemies[id].name || "Enemy";
+        scoreText += ` | ${name} (${enemies[id].score || 0})`;
     });
     document.getElementById('leaderboard').innerText = scoreText;
 }
@@ -167,6 +225,12 @@ function updateLeaderboardUI() {
 function updateBullets(deltaTime) {
     for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i];
+
+        if (collidesWithWall(b.x, b.y, 3)) 
+        {
+            bullets.splice(i, 1);
+            continue;
+        }
 
         b.x += Math.cos(b.angle) * b.speed * deltaTime;
         b.y += Math.sin(b.angle) * b.speed * deltaTime;
@@ -230,6 +294,20 @@ socket.on('updateStats', (data) => {
     // Update Leaderboard UI
     updateLeaderboardUI();
 });
+
+socket.on('gameOver', (data) => {
+    const screen = document.getElementById('victoryScreen');
+    const text = document.getElementById('victoryText');
+    
+    text.innerText = data.message;
+    text.style.color = data.winnerColor;
+    screen.style.display = 'flex';
+
+    // Hide it after 5 seconds
+    setTimeout(() => {
+        screen.style.display = 'none';
+    }, 5000);
+});
 let bots = {};
 
 socket.on('botUpdate', (serverBots) => {
@@ -255,7 +333,19 @@ function drawBots() {
 function drawPlayer() {
     contx.save();
     contx.translate(player.x, player.y);
+    contx.fillStyle = "white";
+    contx.textAlign = "center";
+    contx.font = "14px Arial";
+    contx.fillText(myName, 0, -30); // Draw name above head
     contx.rotate(player.angle);
+    if (muzzleFlashTimer > 0) {
+        contx.fillStyle = "yellow";
+        contx.beginPath();
+        contx.arc(35, 0, 10, 0, Math.PI * 2); // Flash at end of barrel
+        contx.fill();
+        muzzleFlashTimer--;
+    }
+
     contx.fillStyle = player.color;
     contx.beginPath();
     contx.arc(0, 0, 20, 0, Math.PI * 2);
@@ -294,6 +384,24 @@ function drawMapBorder() {
     );
 }
 
+function drawWalls() {
+    contx.fillStyle = "#888";
+    walls.forEach(w => {
+        contx.fillRect(w.x, w.y, w.w, w.h);
+    });
+}
+
+function collidesWithWall(x, y, radius = 20) {
+    return walls.some(w =>
+        x + radius > w.x &&
+        x - radius < w.x + w.w &&
+        y + radius > w.y &&
+        y - radius < w.y + w.h
+    );
+}
+
+
+
 
 function gameLoop(currentTime) {
     // Clear screen
@@ -315,6 +423,7 @@ function gameLoop(currentTime) {
     // DRAW A BACKGROUND GRID 
     drawGrid();
     drawMapBorder();
+    drawWalls()
 
     handle_movement(deltaTime);
     updateBullets(deltaTime);
@@ -327,5 +436,3 @@ function gameLoop(currentTime) {
 
     requestAnimationFrame(gameLoop);
 }
-
-gameLoop();
