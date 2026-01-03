@@ -93,7 +93,7 @@ function activateShield(player) {
         if (players[player.id]) {
             players[player.id].spawnProtected = false;
         }
-    }, 3000); // 3 seconds
+    }, 3000); 
 }
 
 function handleSuccessfulJoin(socket, name) {
@@ -193,13 +193,24 @@ io.on('connection', socket => {
     });
 
     socket.on('update', data => {
-      const p = players[socket.id];
-      if (p){
-        p.x = data.x; 
-        p.y = data.y;
-        p.stamina = data.stamina;
-        p.angle = data.angle;
-      }
+        const p = players[socket.id];
+        if (p) {
+        
+            const dist = Math.hypot(data.x - p.x, data.y - p.y);
+            const maxAllowed = p.stamina > 10 ? 15 : 10; 
+
+            if (!p.isSpectating && dist > maxAllowed + 5) {
+            
+                socket.emit('respawned', { x: p.x, y: p.y }); 
+                return;
+            }
+
+        
+            p.x = data.x;
+            p.y = data.y;
+            p.stamina = data.stamina;
+            p.angle = data.angle;
+        }
     });
 
     socket.on('fire', data => {
