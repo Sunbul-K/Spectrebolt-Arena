@@ -214,6 +214,10 @@
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         const lerp = (a, b, t) => a + (b - a) * t;
+        const joyUp = joy.active && joy.y < -0.3;
+        const joyDown = joy.active && joy.y > 0.3;
+        const joyLeft = joy.active && joy.x < -0.3;
+        const joyRight = joy.active && joy.x > 0.3;
 
         let myId, mapSize, walls = [];
         let players = {}, bots = {}, bullets = {}, matchTimer = 1200;
@@ -222,6 +226,7 @@
         let isMobileSprinting = false;
         let joy = { active: false, x: 0, y: 0, identifier: null };
         let camX=0; let camY=0;
+        let moveTouchId = null;
 
         
         window.addEventListener('load', () => {
@@ -281,40 +286,47 @@
             socket.emit('fire', { angle: angle });
         }
 
-        window.addEventListener('touchstart', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                if (t.clientX < window.innerWidth / 2 && !joy.active) {
+        canvas.addEventListener('touchstart', e => {
+            for (const t of e.changedTouches) {
+
+                if (moveTouchId === null && t.clientX < window.innerWidth / 2) {
+                    moveTouchId = t.identifier;
                     joy.active = true;
                     joy.identifier = t.identifier;
+                    joy.startX = t.clientX;
+                    joy.startY = t.clientY;
                     updateJoystick(t);
-                } 
-                else if (t.target.id !== 'sprintBtn' && t.target.id !== 'mapToggle') {
-                    handleTapToShoot(t);
+                }
+                else {
+                    if (t.target.id !== 'sprintBtn' && t.target.id !== 'mapToggle') {
+                        handleTapToShoot(t);
+                    }
                 }
             }
         }, { passive: false });
 
-        window.addEventListener('touchmove', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                if (joy.active && t.identifier === joy.identifier) {
+
+        canvas.addEventListener('touchmove', e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier === moveTouchId) {
                     updateJoystick(t);
                 }
             }
         }, { passive: false });
 
-        window.addEventListener('touchend', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                if (joy.active && t.identifier === joy.identifier) {
+
+        canvas.addEventListener('touchend', e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier === moveTouchId) {
+                    moveTouchId = null;
                     joy.active = false;
                     joy.identifier = null;
-                    joy.x = 0; joy.y = 0;
+                    joy.x = 0;
+                    joy.y = 0;
                     joyKnob.style.transform = `translate(0,0)`;
                 }
             }
-        });
+        }, { passive: false });
 
         document.getElementById('sprintBtn').addEventListener('touchstart', (e) => { e.preventDefault(); isMobileSprinting = true; });
         document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.preventDefault(); isMobileSprinting = false; });
@@ -406,20 +418,16 @@
 
             if (joy.active) { dx = joy.x * speed; dy = joy.y * speed; }
 
-            if (dx !== 0 || dy !== 0) {
-                if (me.isSpectating) {
-                    me.x += dx; me.y += dy;
-                } else {
-                    if (isSprinting && me.stamina > 0) me.stamina = Math.max(0, me.stamina - 1.5);
-                    else me.stamina = Math.min(100, me.stamina + 0.5);
-                }
-            } else me.stamina = Math.min(100, me.stamina + 0.7);
+            if (me.isSpectating){
+                me.x+=dx;
+                me.y+=dy;
+            }
 
             socket.emit('input', {
-                up: keys['KeyW'] || keys['ArrowUp'],
-                down: keys['KeyS'] || keys['ArrowDown'],
-                left: keys['KeyA'] || keys['ArrowLeft'],
-                right: keys['KeyD'] || keys['ArrowRight'],
+                up: keys['KeyW'] || keys['ArrowUp'] || joyUp,
+                down: keys['KeyS'] || keys['ArrowDown'] || joyDown,
+                left: keys['KeyA'] || keys['ArrowLeft'] || joyLeft,
+                right: keys['KeyD'] || keys['ArrowRight'] || joyRight,
                 sprint: keys['ShiftLeft'] || keys['ShiftRight'] || isMobileSprinting,
                 angle: mouseAngle
             });
