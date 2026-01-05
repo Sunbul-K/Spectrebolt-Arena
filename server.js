@@ -37,6 +37,7 @@ let bullets = {};
 let bulletIdCounter = 0;
 let matchTimer = 15 * 60;
 let walls = generateWalls(12);
+let resetScheduled = false;
 
 
 const BANNED_WORDS = ['fuck', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'ass', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo'];
@@ -366,11 +367,11 @@ io.on('connection', socket => {
         delete players[socket.id]; 
         delete nameAttempts[socket.id]; 
 
-    if (Object.keys(players).length === 0) {
-        console.log("Arena empty. Resetting match...");
-        resetMatch()
-    }
-});
+        if (Object.keys(players).length === 0 && !resetScheduled) {
+            resetMatch();
+        }
+
+    });
 });
 
 
@@ -385,7 +386,15 @@ setInterval(() => {
     }
 
     if (matchTimer > 0) matchTimer = Math.max(0, matchTimer - (TICK_RATE / 1000));
-    else if(matchTimer <= 0 && matchTimer!==-1) { matchTimer = -1; setTimeout(resetMatch, 10000); }
+    else if (matchTimer <= 0 && matchTimer !== -1 && !resetScheduled) {
+        matchTimer = -1;
+        resetScheduled = true;
+        setTimeout(() => {
+            resetScheduled = false;
+            resetMatch();
+        }, 10000);
+    }
+
 
     Object.values(players).forEach(p => {
         if (!p.isSpectating && Date.now() - p.lastRegenTime > 3000) {
@@ -402,11 +411,9 @@ setInterval(() => {
         );
 
 
-        let dx = 0, dy = 0;
-        if (p.input.up) dy--;
-        if (p.input.down) dy++;
-        if (p.input.left) dx--;
-        if (p.input.right) dx++;
+        let dx = p.input.moveX || 0;
+        let dy = p.input.moveY || 0;
+
         if (!p.isSpectating){
             if (p.input.sprint && (dx || dy)) {
                 p.stamina = Math.max(0, p.stamina - 1);

@@ -447,15 +447,18 @@
 
             const JOY_THRESHOLD = 0.06;
             socket.emit('input', {
-                up:    joy.active ? joy.y < -JOY_THRESHOLD : (keys['KeyW'] || keys['ArrowUp']),
-                down:  joy.active ? joy.y >  JOY_THRESHOLD : (keys['KeyS'] || keys['ArrowDown']),
-                left:  joy.active ? joy.x < -JOY_THRESHOLD : (keys['KeyA'] || keys['ArrowLeft']),
-                right: joy.active ? joy.x >  JOY_THRESHOLD : (keys['KeyD'] || keys['ArrowRight']),
-                sprint:isSprinting,
-                angle: joy.active
-                    ? Math.atan2(joy.y, joy.x)
-                    : mouseAngle
+                moveX: joy.active ? joy.x : (
+                    (keys['KeyD'] || keys['ArrowRight'] ? 1 : 0) -
+                    (keys['KeyA'] || keys['ArrowLeft'] ? 1 : 0)
+                ),
+                moveY: joy.active ? joy.y : (
+                    (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) -
+                    (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0)
+                ),
+                sprint: isSprinting,
+                angle: joy.active ? Math.atan2(joy.y, joy.x) : mouseAngle
             });
+
 
 
         }, 1000/60);
