@@ -566,8 +566,9 @@
             }
 
             ctx.save();
-            camX += (me.x - camX) * 0.15;
-            camY += (me.y - camY) * 0.15;
+            const CAM_LERP = 0.22;
+            camX += (me.x - camX) * CAM_LERP;
+            camY += (me.y - camY) * CAM_LERP;
 
             if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
                 camX = me.x;

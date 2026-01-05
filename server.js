@@ -25,8 +25,8 @@ const RELEASES = {
 const MAP_SIZE = 2000;
 const TICK_RATE = 1000 / 30;
 const MAX_ATTEMPTS = 5;
-const BASE_SPEED = 3.9;
-const SPRINT_SPEED = 5.8;
+const BASE_SPEED = 4.6;
+const SPRINT_SPEED = 6.8;
 const ENTITY_RADIUS = 18;
 const NET_TICK = 1000 / 15;
 const MAX_PLAYERS=15;
@@ -162,14 +162,14 @@ function spawnSpecialBots() {
     specialsSpawned=true;
 
     if (RELEASES.ROB && Math.random() < 0.75) {
-        const rob = new Bot('bot_rob', 'Rob', '#4A90E2', 3.9, 950);
+        const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED, 950);
         rob.damageTakenMultiplier = 1.0;
         bots['bot_rob'] = rob;
         console.log('Rob has entered the arena.');
     }
 
     if (RELEASES.ELIMINATOR && Math.random() < 0.25) {
-        const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.1, 1100);
+        const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
         elim.isRetreating = false;
         elim.damageTakenMultiplier = 0.75;
         bots['bot_eliminator'] = elim;
@@ -349,7 +349,7 @@ class Bot {
 
 
 
-bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 2.6, 800);
+bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
 bots['bot_bobby'].damageTakenMultiplier = 1.35;
 
 
@@ -501,13 +501,13 @@ setInterval(() => {
                 dx /= len;
                 dy /= len;
             }
-
-            let nx = p.x + dx * speed;
+            const moveFactor = delta * 60;
+            let nx = p.x + dx * speed * moveFactor;
             if (!collidesWithWall(nx, p.y, ENTITY_RADIUS)) {
                 p.x = nx;
             }
 
-            let ny = p.y + dy * speed;
+            let ny = p.y + dy * speed * moveFactor;
             if (!collidesWithWall(p.x, ny, ENTITY_RADIUS)) {
                 p.y = ny;
             }
