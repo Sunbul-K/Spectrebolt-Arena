@@ -439,10 +439,11 @@
                 dy = joy.y;
             }
 
-            if (me.isSpectating) {
+            if (me.isSpectating && Number.isFinite(me.x) && Number.isFinite(me.y)) {
                 me.x += dx * 15;
                 me.y += dy * 15;
             }
+
 
             const JOY_THRESHOLD = 0.06;
             socket.emit('input', {
@@ -451,7 +452,9 @@
                 left:  joy.active ? joy.x < -JOY_THRESHOLD : (keys['KeyA'] || keys['ArrowLeft']),
                 right: joy.active ? joy.x >  JOY_THRESHOLD : (keys['KeyD'] || keys['ArrowRight']),
                 sprint:isSprinting,
-                angle:mouseAngle
+                angle: joy.active
+                    ? Math.atan2(joy.y, joy.x)
+                    : mouseAngle
             });
 
 
@@ -521,11 +524,24 @@
         }
 
         function draw() {
+            if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
+                camX = 0;
+                camY = 0;
+            }
             ctx.setTransform(1, 0, 0, 1, 0, 0);
+
             ctx.fillStyle = "#111";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const me = players[myId];
+            if (!me || !Number.isFinite(me.x) || !Number.isFinite(me.y)) {
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.fillStyle = "#111";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                requestAnimationFrame(draw);
+                return;
+            }
+
             if (!me) {
                 requestAnimationFrame(draw);
                 return;
@@ -534,6 +550,12 @@
             ctx.save();
             camX += (me.x - camX) * 0.7;
             camY += (me.y - camY) * 0.7;
+
+            if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
+                camX = me.x;
+                camY = me.y;
+            }
+
             ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
 
             ctx.fillStyle = "#006666";
@@ -598,6 +620,7 @@
                 return;
             }
             drawMinimap();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             requestAnimationFrame(draw);
         }
         draw();
