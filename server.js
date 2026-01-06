@@ -28,7 +28,6 @@ const MAX_ATTEMPTS = 5;
 const BASE_SPEED = 4.6;
 const SPRINT_SPEED = 6.8;
 const ENTITY_RADIUS = 18;
-const NET_TICK = 1000 / 15;
 const MAX_PLAYERS=15;
 const JOIN_CUTOFF_SECONDS=5*60;
 const BULLET_LIFETIME = 1200;
@@ -50,6 +49,10 @@ let matchStarted = false;
 let botAccumulator = 0;
 let bulletAccumulator = 0;
 let specialsSpawned = false;
+const NET_TICK_IDLE = 1000 / 10;
+const NET_TICK_ACTIVE = 1000 / 20;
+let NET_TICK = NET_TICK_IDLE;
+
 
 
 const BANNED_WORDS = ['fuck', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'ass', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo'];
@@ -447,6 +450,7 @@ setInterval(() => {
         }
     }
     const activePlayers = Object.values(players).some(p => !p.isSpectating);
+    NET_TICK = activePlayers ? NET_TICK_ACTIVE : NET_TICK_IDLE;
 
     const now = Date.now();
     const delta = Math.min((now - lastTickTime) / 1000, 0.05);
@@ -471,14 +475,15 @@ setInterval(() => {
             p.hp = Math.min(100, p.hp + 5);
             p.lastRegenTime = Date.now();
         }
-        if (!p.input && !p.isSpectating) return;
+        
 
 
         let speed = p.isSpectating ? 15 : (p.input.sprint && p.stamina > 0? SPRINT_SPEED: BASE_SPEED);
 
 
-        let dx = p.input.moveX || 0;
-        let dy = p.input.moveY || 0;
+        const input = p.input || {};
+        let dx = input.moveX || 0;
+        let dy = input.moveY || 0;
 
         if (!p.isSpectating){
             if (p.input.sprint && (dx || dy)) {
@@ -522,8 +527,8 @@ setInterval(() => {
     }
     bulletAccumulator += delta;
 
-    if (bulletAccumulator >= 1 / 15) {
-        bulletAccumulator = 0;
+    while (bulletAccumulator >= 1 / 15) {
+        bulletAccumulator -= 1/15;
 
         Object.values(bullets).forEach(b => {
             if (Date.now() - b.born > BULLET_LIFETIME) {
@@ -531,7 +536,7 @@ setInterval(() => {
                 return;
             }
 
-            const bulletStep = 60 / 15;
+            const bulletStep = delta*60;
             b.x += Math.cos(b.angle) * b.speed * bulletStep;
             b.y += Math.sin(b.angle) * b.speed * bulletStep;
 
@@ -548,8 +553,8 @@ setInterval(() => {
 
             const livePlayers = Object.values(players).filter(p => !p.isSpectating);
             const liveBots = Object.values(bots).filter(b => !b.retired);
-
             for (const target of [...livePlayers, ...liveBots]) {
+                if (Math.abs(target.x - b.x) > 40 || Math.abs(target.y - b.y) > 40) continue;
                 if (
                     hit ||
                     target.id === b.owner ||
@@ -641,18 +646,15 @@ setInterval(() => {
         const slimPlayers = {};
         for (const [id, p] of Object.entries(players)) {
             slimPlayers[id] = {
-                id: p.id,
                 x: p.x,
                 y: p.y,
                 hp: p.hp,
-                lives: p.lives,
-                score: p.score,
                 angle: p.angle,
                 isSpectating: p.isSpectating,
-                spawnProtected: Date.now()<p.spawnProtectedUntil,
+                spawnProtected: Date.now() < p.spawnProtectedUntil,
                 stamina: p.stamina,
-                name: p.name,
-                color: p.color
+                score:p.score,
+                lives:p.lives
             };
         }
         const slimBots = {};

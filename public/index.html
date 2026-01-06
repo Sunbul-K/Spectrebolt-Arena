@@ -196,6 +196,9 @@
         <div id="moveJoystick" class="joystick-base">
             <div id="moveKnob" class="joystick-knob"></div>
         </div>
+        <div id="shootJoystick" class="joystick-base" style="bottom: 40px;right: 60px;left: auto;display: none;">
+            <div id="shootKnob" class="joystick-knob"></div>
+        </div>
         <div id="sprintBtn" class="action-btn">RUN</div>
     </div>
 
@@ -207,6 +210,8 @@
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         const lerp = (a, b, t) => a + (b - a) * t;
+        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        
 
         let lastMiniUpdate = 0;
         let myId, mapSize, walls = [];
@@ -215,6 +220,7 @@
         let mouseAngle = 0;
         let isMobileSprinting = false;
         let joy = { active: false, startX: 0, startY: 0, id: null, x:0, y:0 };
+        let shootJoy = {active:false, x:0, y:0, id:null}
         let camX=0; let camY=0;
         let moveTouchId = null;
         let personalBest = Number(localStorage.getItem("personalBest") || 0);
@@ -222,12 +228,16 @@
 
         
         window.addEventListener('load', () => {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
             if (isIOS && !isStandalone) {
                 document.getElementById('ios-prompt').style.display = 'block';
             }
         });
+        if (isIOS && 'ontouchstart' in window) {
+            document.getElementById('shootJoystick').style.display = 'block';
+        }
+
 
 
         async function requestFullScreen() {
@@ -364,6 +374,61 @@
             }
         }, { passive: false });
 
+        const shootBase = document.getElementById('shootJoystick');
+        const shootKnob = document.getElementById('shootKnob');
+
+        shootBase.addEventListener('touchstart', e => {
+            const t = e.changedTouches[0];
+            shootJoy.active = true;
+            shootJoy.id = t.identifier;
+            shootKnob.style.transform = "translate(0,0)";
+            e.preventDefault();
+        }, { passive: false });
+
+        shootBase.addEventListener('touchmove', e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier !== shootJoy.id) continue;
+
+                const rect = shootBase.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+
+                let dx = t.clientX - cx;
+                let dy = t.clientY - cy;
+
+                const dist = Math.hypot(dx, dy);
+                const max = 45;
+                const clamped = Math.min(dist, max);
+
+                if (dist > 8) {
+                    shootJoy.x = dx / dist;
+                    shootJoy.y = dy / dist;
+
+                    mouseAngle = Math.atan2(shootJoy.y, shootJoy.x);
+
+                    // Fire continuously
+                    socket.emit('fire', { angle: mouseAngle });
+
+                    shootKnob.style.transform =`translate(${shootJoy.x * clamped}px, ${shootJoy.y * clamped}px)`;
+                }
+
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        shootBase.addEventListener('touchend', e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier !== shootJoy.id) continue;
+
+                shootJoy.active = false;
+                shootJoy.id = null;
+                shootJoy.x = 0;
+                shootJoy.y = 0;
+                shootKnob.style.transform = "translate(0,0)";
+            }
+        }, { passive: false });
+
+
         document.getElementById('sprintBtn').addEventListener('touchstart', (e) => { e.preventDefault(); isMobileSprinting = true; });
         document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.preventDefault(); isMobileSprinting = false; });
 
@@ -408,7 +473,8 @@
             const msg = document.createElement('div');
             msg.className='kill-msg';
             msg.innerHTML = `<span style="color:var(--accent)">${data.shooter}</span> killed ${data.victim}`;
-            feed.appendChild(msg);
+            if (feed.children.length > 5) feed.removeChild(feed.firstChild);
+            else {feed.appendChild(msg);}
             setTimeout(() => msg.remove(), 4000);
         });
         socket.on('state', s => {
@@ -436,6 +502,9 @@
                 players[myId].spawnProtected = s.players[myId].spawnProtected;
                 players[myId].stamina = s.players[myId].stamina;
             }
+            const all = [...Object.values(players), ...Object.values(bots)].sort((a, b) => b.score - a.score).slice(0, 5);
+
+            document.getElementById('scoreList').innerHTML =all.map(p => `<div>${p.name}: ${p.score}</div>`).join('');
         });
 
 
@@ -595,11 +664,16 @@
                 ctx.strokeRect(w.x, w.y, w.w, w.h);
             });
             Object.values(bullets).forEach(b => {
-                ctx.fillStyle = "yellow";
+                if (
+                    Math.abs(b.x - camX) > canvas.width ||
+                    Math.abs(b.y - camY) > canvas.height
+                ) return;
+
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
                 ctx.fill();
             });
+
 
             Object.values(bots).forEach(b => {
                 b.renderX = lerp(b.renderX || b.x, b.x, 0.15);
@@ -624,13 +698,6 @@
             const mins = Math.floor(matchTimer / 60);
             const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
             document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
-
-            const all = [...Object.values(players), ...Object.values(bots)]
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 5);
-
-            document.getElementById('scoreList').innerHTML =
-                all.map(p => `<div>${p.name}: ${p.score}</div>`).join('');
 
             if (matchTimer <= 0) {
                 document.getElementById('gameOver').style.display = 'flex';
