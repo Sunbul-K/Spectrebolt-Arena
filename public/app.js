@@ -311,7 +311,27 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 
             const scoreList = document.getElementById('scoreList');
 
-            scoreList.innerHTML = all.map(p => `<div data-id="${p.id || p.name}"style="padding:2px 0; ${p.id === myId ? 'color:#0f4;font-weight:bold;' : ''}">${p.name}: ${p.score}</div>`).join('');
+            let lastScore = null;
+            let lastRank = 0;
+
+            scoreList.innerHTML = all.map((p, index) => {
+                if (p.score !== lastScore) {
+                    lastRank = index + 1;
+                    lastScore = p.score;
+                }
+
+                return `
+                    <div class="leaderboard-row"
+                        data-id="${p.id || p.name}"
+                        ${p.id === myId ? 'style="color:#0f4;font-weight:bold;"' : ''}>
+                        <span class="lb-rank">${lastRank}.</span>
+                        <span class="lb-name">${p.name}</span>
+                        <span class="lb-score">${p.score}</span>
+                    </div>
+                `;
+            }).join('');
+
+
 
             if (!leaderboardUserScrolled && myId) {
                 const meRow = scoreList.querySelector(`[data-id="${myId}"]`);
@@ -326,6 +346,48 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 
 
         socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });
+        socket.on('RobSpawned', () => {
+            setTimeout(() => {
+                const box = document.getElementById('robNotice');
+                const msg = document.createElement('div');
+
+                msg.className = 'rob-msg';
+                msg.textContent = 'Rob has joined the arena';
+
+                box.appendChild(msg);
+                setTimeout(() => msg.remove(), 4000);
+            }, 5000);
+        });
+        socket.on('EliminatorSpawned', () => {
+            setTimeout(() => {
+                const box = document.getElementById('eliminatorNotice');
+                const msg = document.createElement('div');
+                msg.className = 'eliminator-msg';
+                msg.textContent = 'THE ELIMINATOR HAS ENTERED THE ARENA';
+
+                box.appendChild(msg);
+                setTimeout(() => msg.remove(), 4000);
+            }, 5000);
+        });
+
+        socket.on('RobRetired', () => {
+            const box = document.getElementById('robNotice');
+            const msg = document.createElement('div');
+            msg.className = 'rob-msg';
+            msg.textContent = 'Rob has left the arena.';
+
+            box.appendChild(msg);
+            setTimeout(() => msg.remove(), 4000);
+        });
+        socket.on('EliminatorRetired', () => {
+            const box = document.getElementById('eliminatorNotice');
+            const msg = document.createElement('div');
+            msg.className = 'eliminator-msg';
+            msg.textContent = 'The Eliminator has fallen.. with no return.';
+            box.appendChild(msg);
+            setTimeout(() => msg.remove(), 4000);
+        });
+
         socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
         socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; });
 
