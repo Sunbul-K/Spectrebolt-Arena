@@ -248,25 +248,17 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 
 
         
-        socket.on('init', d => { 
-            myId = d.id; mapSize = d.mapSize; walls = d.walls; 
-            players[myId] = {
-                id:myId,
-                x:d.spawnX || mapSize/2,
-                y:d.spawnY || mapSize/2,
-                angle:0,
-                hp:forcedSpectator ? 0: 100,
-                stamina:100,
-                lives:forcedSpectator ? 0: 3,
-                score:0,
-                name:d.name || "Sniper",
-                color:null,
-                isSpectating:false,
-                forcedSpectator: d.forcedSpectator || false,
-                spawnProtected:true
-            };
-            if (players[myId]) { camX = players[myId].x; camY = players[myId].y; }
+        socket.on('init', d => {
+            if (!d || !d.id) return;
+
+            const isForcedSpectator = !!d.forcedSpectator;
+
+            players[d.id] = {id: d.id,x: d.spawnX ?? mapSize / 2,y: d.spawnY ?? mapSize / 2,angle: 0,hp: isForcedSpectator ? 0 : 100,stamina: 100,lives: isForcedSpectator ? 0 : 3,score: 0,name: d.name || "Sniper",color: d.color || null,isSpectating: isForcedSpectator,forcedSpectator: isForcedSpectator,spawnProtected: true};
+            
+            camX = players[d.id].x;
+            camY = players[d.id].y;
         });
+
         socket.on('killEvent', (data) => {
             const feed = document.getElementById('killFeed');
             const msg = document.createElement('div');
