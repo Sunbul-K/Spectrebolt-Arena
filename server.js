@@ -153,8 +153,9 @@ function generateUniqueColor() {
 }
 
 function shouldRespawnBot(botId) {
+    if (!matchStarted || matchTimer <= 0) return false;
     if (botId === 'bot_rob') return Math.random() < 0.75;
-    if (botId === 'bot_eliminator') return Math.random() < 0.25;
+    if (botId === 'bot_eliminator') return Math.random() < 0.5;
     return true; // Bobby always respawns
 }
 
@@ -369,8 +370,9 @@ class Bot {
             let nx = this.x + (vx / len) * moveSpeed;
             let ny = this.y + (vy / len) * moveSpeed;
 
-            if (!collidesWithWall(nx, this.y)) this.x = nx;
-            if (!collidesWithWall(this.x, ny)) this.y = ny;
+            if (!collidesWithWall(nx, this.y, ENTITY_RADIUS)) this.x = nx;
+            if (!collidesWithWall(this.x, ny, ENTITY_RADIUS)) this.y = ny;
+
 
             if (this.hp >= 70) this.isRetreating = false;
             return;
@@ -622,6 +624,7 @@ setInterval(() => {
 
                 let damage = 10;
                 if (dx * dx + dy * dy < HIT_RADIUS * HIT_RADIUS) {
+                    hit=true;
                     if (target.id === 'bot_rob') {
                         const now = Date.now();
                         if (now - target.lastHitTime < 250) target.hitChain++;
