@@ -232,15 +232,20 @@ document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.pre
 window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('mousemove', e => {
-    if (!joy.active) {
-        const me = players[myId];
-        if (!me) return;
+    if (joy.active) return;
 
-        const mouseX = e.clientX + camX - canvas.width / 2;
-        const mouseY = e.clientY + camY - canvas.height / 2;
+    const me = players[myId];
+    if (!me) return;
 
-        mouseAngle = Math.atan2(mouseY - me.x, mouseX - me.y);
-    }
+    const rect = canvas.getBoundingClientRect();
+
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const worldX = camX - canvas.width / 2 + mx;
+    const worldY = camY - canvas.height / 2 + my;
+
+    mouseAngle = Math.atan2(worldY - me.y, worldX - me.x);
 });
 window.addEventListener('keydown', e => {
     keys[e.code] = true;
@@ -479,10 +484,13 @@ setInterval(() => {
     }
 
     let aimingAngle = mouseAngle;
-    if (joy.active && (joy.x !== 0 || joy.y !== 0)) {
-        aimingAngle = Math.atan2(joy.y, joy.x);
-    }
-    const quantAngle = Math.round(aimingAngle * 100) / 100;
+
+        if (shootJoy.active && (shootJoy.x !== 0 || shootJoy.y !== 0)) {
+            aimingAngle = Math.atan2(shootJoy.y, shootJoy.x);
+        }
+
+    const quantAngle =shootJoy.active    ? Math.round(aimingAngle * 100) / 100: aimingAngle;
+
     const input = { moveX:dx, moveY:dy, sprint:isSprinting, angle: quantAngle };
     if (me.isSpectating ||!lastInput ||input.moveX !== lastInput.moveX ||input.moveY !== lastInput.moveY ||input.sprint !== lastInput.sprint ||input.angle !== lastInput.angle) {
         socket.emit('input', input);
