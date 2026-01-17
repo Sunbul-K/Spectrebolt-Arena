@@ -375,26 +375,26 @@ socket.on('state', s => {
         players[myId].forcedSpectator = s.players[myId].forcedSpectator;
     }
 
-    const all = Object.values(leaderboardEntities).filter(e => !players[e.id]?.forcedSpectator) .sort((a, b) => b.score - a.score);
+    const all = Object.values(leaderboardEntities).sort((a, b) => b.score - a.score);
 
     let lastScore = null;
-    let lastRank = 0;
+    let rank = 0;
 
-
-    const top5 = all.slice(0, 5).map((p, index) => {
+    const ranked = all.map((p, index) => {
         if (p.score !== lastScore) {
-            lastRank = index + 1;
+            rank = index + 1;
             lastScore = p.score;
         }
+        return { ...p, rank };
+    });
+
+
+    const top5 = ranked.slice(0, 5).map((p, index) => {
         const isMe = p.id === myId;
         return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${lastRank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
     }).join('');
 
-    const remaining = all.slice(5).map((p, index) => {
-        if (p.score !== lastScore) {
-            lastRank = index + 6; // +6 because slice(5) starts at rank 6
-            lastScore = p.score;
-        }
+    const remaining = ranked.slice(5).map((p, index) => {
         const isMe = p.id === myId;
         return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${lastRank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
     }).join('');

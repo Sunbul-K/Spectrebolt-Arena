@@ -96,17 +96,14 @@ function validateName(name) {
     const baseNormalized = lower.split('').map(c => leetMap[c] ?? c).join('').replace(/[^a-z]/g, '');
 
     const collapsed = baseNormalized.replace(/(.)\1+/g, '$1');
-  
+    const stripped = baseNormalized.replace(/[0-9]/g, '');
 
-
-
-    if (RESERVED.includes(baseNormalized) ||RESERVED.includes(collapsed)) return false;
+    if (RESERVED.includes(lower) ||RESERVED.includes(baseNormalized) ||RESERVED.includes(collapsed) ||RESERVED.includes(stripped)) return false;
 
     if (SUBSTRING_BANS.some(w => baseNormalized.includes(w) || collapsed.includes(w))) return false;
 
     if (WORD_ONLY_BANS.some(w => new RegExp(`\\b${w}\\b`).test(baseNormalized))) return false;
-
-
+    
     return true;
 }
 
