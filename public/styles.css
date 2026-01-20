@@ -102,33 +102,6 @@ body {
     cursor: pointer;
 }
 
-.checkbox-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 12px;
-    font-size: 14px;
-    color: white;
-}
-
-.checkbox-wrapper input {
-    margin: 0;
-    flex-shrink: 0;
-}
-
-.checkbox-wrapper input[type="checkbox"] {
-    margin: 0;
-    padding: 0;
-
-    width: 16px;
-    height: 16px;
-
-    min-width: 16px;
-    min-height: 16px;
-
-    flex: 0 0 auto;
-}
-
 @media screen and (orientation: portrait) {
     #portrait-warning {
         display: flex !important;

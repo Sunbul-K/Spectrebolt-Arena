@@ -13,7 +13,6 @@ const isIOS = navigator.userAgentData? navigator.userAgentData.platform === 'iOS
 const MAX_DIST = 50;
 const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900; // world units visible across smallest screen dimension
-const AUTO_REMATCH_DELAY = 10000; // 10 seconds
 
 let gameOverSince = null;
 let leaderboardUserScrolled = false;
@@ -34,9 +33,7 @@ let lastShootTime=0;
 let spaceHeld = false;
 let lastSpaceShot = 0;
 let leaderboardEntities = {}; 
-let autoRematchTimeout = null;
-let autoRematchActive = false; 
-let autoRematchCountdown = null;   // Tracks remaining seconds
+let isRematching = false;
         
 
         
@@ -111,7 +108,6 @@ window.addEventListener('DOMContentLoaded', () => {
     startBtn.onclick = () => {
         const name = document.getElementById('nameInput').value;
         socket.emit('joinGame', { name: name || "Sniper" });
-        socket.emit('setAutoRematch', localStorage.getItem('autoRematch') !== 'false');
         document.getElementById('nameScreen').style.display = 'none';
     };
 });
@@ -142,18 +138,6 @@ function clampLeaderboardToTop5() {
 }
 
 window.addEventListener('resize', clampLeaderboardToTop5);
-
-const autoRematchToggle = document.getElementById('autoRematchToggle');
-
-const savedAutoRematch =localStorage.getItem('autoRematch') !== null ? localStorage.getItem('autoRematch') === 'true': true; // default is on
-
-autoRematchToggle.checked = savedAutoRematch;
-
-autoRematchToggle.addEventListener('change', () => {
-    const enabled = autoRematchToggle.checked;
-    localStorage.setItem('autoRematch', enabled);
-    socket.emit('setAutoRematch', enabled);
-});
 
 const joyBase = document.getElementById('moveJoystick');
 const joyKnob = document.getElementById('moveKnob');
@@ -300,41 +284,16 @@ window.addEventListener('mousemove', e => {
 });
 
 document.getElementById('rematchBtn').onclick = () => {
-    gameOverSince=null;
-    if (autoRematchTimeout) {
-        clearTimeout(autoRematchTimeout);
-        autoRematchTimeout = null;
-        autoRematchActive = false;
-    }
+    gameOverSince = null;
+    isRematching = true;
+
+    leaderboardEntities = {}; // prevent winners re-render
+    document.getElementById('gameOver').style.display = 'none';
+
     const me = players[myId];
     if (me) socket.emit('joinGame', { name: me.name || "Sniper" });
-    document.getElementById('gameOver').style.display = 'none';
 };
 
-function scheduleAutoRematch() {
-    const me = players[myId];
-    const autoRematch = localStorage.getItem('autoRematch') !== 'false';
-    if (!autoRematch || !me || me.isSpectating || autoRematchActive) return;
-
-    autoRematchActive = true;
-    let remaining = AUTO_REMATCH_DELAY / 1000;
-    autoRematchCountdown = remaining;
-
-    const countdownInterval = setInterval(() => {
-        remaining -= 1;
-        autoRematchCountdown = remaining;
-        if (remaining <= 0) {
-            clearInterval(countdownInterval);
-        }
-    }, 1000);
-
-    autoRematchTimeout = setTimeout(() => {
-        socket.emit('joinGame', { name: me.name || "Sniper" });
-        autoRematchTimeout = null;
-        autoRematchActive = false;
-        autoRematchCountdown = null;
-    }, AUTO_REMATCH_DELAY);
-}
 
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 
@@ -358,7 +317,42 @@ socket.on('init', d => {
     camX = players[d.id].x;
     camY = players[d.id].y;
 });
+socket.on('rematchDenied', (msg) => {
+    alert(msg || "Cannot rematch yet. Please wait a bit then try again");
+});
+socket.on('rematchSpectator', () => {
+    const banner = document.getElementById('lateSpectatorBanner');
+    if (banner) banner.style.display = 'block';
+    if (players[myId]) {
+        players[myId].isSpectating = true;
+        players[myId].forcedSpectator = true;
+    }
+});
+socket.on('rematchAccepted', (data) => {
+    isRematching = false;
+    gameOverSince = null;
 
+    const me = players[myId] || {};
+    players[myId] = {
+        ...me,
+        x: data.x ?? mapSize/2,
+        y: data.y ?? mapSize/2,
+        hp: 100,
+        lives: 3,
+        score: 0,
+        isSpectating: false,
+        forcedSpectator: false,
+        spawnProtected: true,
+        name: me.name || "Sniper",
+        color: me.color || null
+    };
+
+    camX = players[myId].x;
+    camY = players[myId].y;
+
+    document.getElementById('gameOver').style.display = 'none';
+    document.getElementById('gameOverNotice').style.display = 'none';
+});
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
     if (!feed) return;
@@ -500,10 +494,11 @@ socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
 socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
 socket.on('matchReset', () => {
     gameOverSince = null;
+    isRematching = false;
+
+    leaderboardEntities = {};
     document.getElementById('gameOverNotice').style.display = 'none';
     document.getElementById('gameOver').style.display = 'none';
-    leaderboardEntities = {};
-    scheduleAutoRematch();
 });
 
 
@@ -801,7 +796,7 @@ function draw(){
     const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
     document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
 
-    if (matchTimer <= 0) {
+    if (matchTimer <= 0 && !isRematching) {
         if (!gameOverSince) {
             gameOverSince = Date.now();
         }
@@ -811,14 +806,14 @@ function draw(){
         ctx.fillStyle = "#111";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw countdown text
+        // Draw rematch text
         ctx.fillStyle = "#fff";
         ctx.font = "22px monospace";
         ctx.textAlign = "center";
 
-        const countdownText= autoRematchCountdown != null ? `AUTO REMATCH IN: ${autoRematchCountdown}s` : "Press  REMATCH to play again"
+        const rematchText= "Press  REMATCH to play again"
 
-        ctx.fillText(countdownText,canvas.width / 2,canvas.height / 2 + 80);
+        ctx.fillText(rematchText,canvas.width / 2,canvas.height / 2 + 80);
 
         renderWinners();
         drawMinimap();
