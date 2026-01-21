@@ -531,8 +531,7 @@ document.getElementById('rematchBtn').onclick = () => {
 
     matchTimer = 15*60;           
     bullets = {};
-    leaderboardEntities = {};
-    players = {};                 
+    leaderboardEntities = {};               
     bots = {};                    
     lastInput = null;
     lastShootTime = 0;
@@ -547,8 +546,6 @@ document.getElementById('rematchBtn').onclick = () => {
     const me = players[myId];
     socket.emit('joinGame', { name: me?.name || "Sniper" });
 };
-
-
 
 
 setInterval(() => {
@@ -580,8 +577,6 @@ setInterval(() => {
     lastSpaceShot = now;
     socket.emit('fire', { angle: mouseAngle });
 }, 1000 / 60);
-
-
 setInterval(() => {
     const me = players[myId];
     if (!me || matchTimer <= 0) return;

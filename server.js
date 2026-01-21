@@ -445,7 +445,7 @@ bots['bot_bobby'].damageTakenMultiplier = 1.35;
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
         let name = (data.name || "").trim().slice(0, 14);
-        if (!name) {
+        if (!name || name.toLowerCase() === "sniper") {
             name = "Sniper" + Math.floor(1000 + Math.random() * 9000);
         }
 
@@ -481,6 +481,7 @@ io.on('connection', socket => {
         else if (matchTimer <= JOIN_CUTOFF_SECONDS) {
             forcedSpectator = true;
         }
+        console.log('FINAL NAME:', name);
 
         handleSuccessfulJoin(socket, name, forcedSpectator, waitingForRematch);
         console.log(`${players[socket.id].name} has joined the arena`)
