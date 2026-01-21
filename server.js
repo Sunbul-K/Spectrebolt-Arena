@@ -110,19 +110,6 @@ function validateName(name) {
 }
 
 
-function sanitizeName(name) {
-    if (typeof name !== 'string') return "Sniper";
-
-    let cleaned = name.trim().slice(0, 14).replace(/[^A-Za-z0-9 _-]/g, '');
-
-    if (!cleaned.length) {
-        cleaned = "Spectre" + Math.floor(1000 + Math.random() * 9000);
-    }
-
-    return cleaned;
-}
-
-
 function rectsIntersect(r1, r2, padding = 0) {
     return (r1.x < r2.x + r2.w + padding && r1.x + r1.w + padding > r2.x &&
             r1.y < r2.y + r2.h + padding && r1.y + r1.h + padding > r2.y);
@@ -457,10 +444,12 @@ bots['bot_bobby'].damageTakenMultiplier = 1.35;
 
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
-        const rawName = data.name || "";
-        let finalName = rawName.trim().slice(0, 14);
+        let name = (data.name || "").trim().slice(0, 14);
+        if (!name) {
+            name = "Sniper" + Math.floor(1000 + Math.random() * 9000);
+        }
 
-        if (!validateName(finalName)) {
+        else if (!validateName(name)) {
             const key = socket.handshake.address + ':' + socket.id.slice(0, 6);
             nameAttempts[key] = (nameAttempts[key] || 0) + 1;
 
@@ -493,8 +482,7 @@ io.on('connection', socket => {
             forcedSpectator = true;
         }
 
-        finalName = sanitizeName(finalName);
-        handleSuccessfulJoin(socket, finalName, forcedSpectator, waitingForRematch);
+        handleSuccessfulJoin(socket, name, forcedSpectator, waitingForRematch);
         console.log(`${players[socket.id].name} has joined the arena`)
     });
 
