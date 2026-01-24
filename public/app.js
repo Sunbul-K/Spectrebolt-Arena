@@ -15,6 +15,7 @@ const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900; // world units visible across smallest screen dimension
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 
+let rematchCountdownInterval = null;
 let gameOverSince = null;
 let lastMiniUpdate = 0;
 let myId, mapSize, walls = [];
@@ -111,14 +112,6 @@ standaloneMQ.addEventListener('change', () => {
     cachedStandalone = null;
     updateUXWarnings();
 });
-
-
-
- 
-if ('ontouchstart' in window) {
-    document.getElementById('shootJoystick').style.display = 'block';
-    document.getElementById('moveJoystick').style.display='block';
-}
 
 async function requestFullScreen() {
     const el = document.documentElement;
@@ -371,6 +364,8 @@ socket.on('rematchSpectator', () => {
     }
 });
 socket.on('rematchAccepted', (data) => {
+    if (data.id !== myId) return;
+
     isRematching = false;
     gameOverSince = null;
 
@@ -397,7 +392,42 @@ socket.on('rematchAccepted', (data) => {
     document.getElementById('gameOver').style.display = 'none';
     document.getElementById('gameOverNotice').style.display = 'none';
 });
+socket.on('rematchQueueUpdate', (data) => {
+    const container = document.getElementById('rematchQueue');
+    const list = document.getElementById('rematchList');
+    if (!container || !list) return;
 
+    if (!data.queue || data.queue.length === 0) {
+        container.style.display = 'none';
+        if (rematchCountdownInterval) {
+            clearInterval(rematchCountdownInterval);
+            rematchCountdownInterval = null;
+        }
+    } else {
+        container.style.display = 'block';
+        list.innerText = data.queue.join(', ');
+
+        if (data.timeLeft != null) {
+            const countdownEl = document.getElementById('rematchCountdown');
+            if (!countdownEl) {
+                const span = document.createElement('span');
+                span.id = 'rematchCountdown';
+                span.style.marginLeft = '8px';
+                list.parentNode.appendChild(span);
+            }
+
+            let endTime = Date.now() + data.timeLeft;
+
+            if (rematchCountdownInterval) clearInterval(rematchCountdownInterval);
+
+            rematchCountdownInterval = setInterval(() => {
+                const secondsLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+                document.getElementById('rematchCountdown').innerText = `${secondsLeft}s left.`;
+                if (secondsLeft <= 0) {clearInterval(rematchCountdownInterval); rematchCountdownInterval =null;}
+            }, 250);
+        }
+    }
+});
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
     if (!feed) return;
@@ -847,14 +877,6 @@ function draw(){
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = "#111";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = "#fff";
-        ctx.font = "22px monospace";
-        ctx.textAlign = "center";
-
-        const rematchText= "Press REMATCH to play again"
-
-        ctx.fillText(rematchText,canvas.width / 2,canvas.height / 2 + 80);
 
         renderWinners();
         drawMinimap();

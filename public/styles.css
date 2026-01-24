@@ -161,7 +161,7 @@ canvas { display: block; }
 
 .elim-msg {
     background: red;
-    color: #ffd6d6;
+    color: black;
     padding: 6px 12px;
     border-radius: 6px;
     font-weight: 800;
@@ -212,7 +212,12 @@ canvas { display: block; }
     justify-content: center;
 }
 
-#nameScreen h1 { color: white; font-size: 56px; margin-bottom: 30px; letter-spacing: 5px; }
+#nameScreen h1 { 
+    color: white; 
+    font-size: 56px; 
+    margin-bottom: 30px; 
+    letter-spacing: 5px; 
+}
 #nameScreen input[type="text"] { 
     padding: 15px; 
     font-size: 20px; 
@@ -223,18 +228,63 @@ canvas { display: block; }
     outline: none;
 }
 #nameScreen button, #gameOver button { 
-    margin-top: 25px; padding: 15px 50px; font-size: 22px; 
-    background: var(--accent); border: none; cursor: pointer; 
-    font-weight: bold; border-radius: 5px; transition: transform 0.1s;
+    margin-top: 25px; 
+    padding: 15px 50px; 
+    font-size: 22px; 
+    background: var(--accent); 
+    border: none; 
+    cursor: pointer; 
+    font-weight: bold; 
+    border-radius: 5px; 
+    transition: transform 0.1s;
 }
 #ui, #leaderboard {
-    position: fixed; top: 15px; color: white;
-    background: var(--ui-bg); padding: 15px; border-radius: 10px; 
-    pointer-events: none; z-index: 10; font-size: 14px;
+    position: fixed; 
+    top: 15px; 
+    color: white;
+    background: var(--ui-bg); 
+    padding: 15px; 
+    border-radius: 10px; 
+    pointer-events: none; 
+    z-index: 10; 
+    font-size: 14px;
 }
-#ui { left: 15px; min-width: 160px; }
+#ui { 
+    left: 15px; 
+    min-width: 160px; 
+}
 
-/* Leaderboard container */
+#gameOverNotice{
+    background-color: rgb(47, 92, 132);
+    margin-top: 10px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+#rematchQueue {
+    display: none; 
+    background: #111;
+    color: #0f4;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 14px;
+    box-shadow: 0 0 15px rgba(0, 255, 68, 0.4);
+    user-select: none;
+    margin-top: 10px; 
+}
+
+#rematchCountdown {
+    margin-left: 8px;
+    font-weight: bold;
+    color: #ff0;
+    animation: pulse 1s infinite;
+}
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 #leaderboard {
     position: fixed;
     top: 15px;
@@ -249,18 +299,18 @@ canvas { display: block; }
     font-size: 14px;
     display: flex;
     flex-direction: column;
-    max-height: 90vh; /* fallback for very small screens */
+    max-height: 90vh; 
 }
 #leaderboardTop5 {
     flex-shrink: 0;
     margin-bottom: 5px;
 }
 #leaderboardScroll {
-    flex: 1 1 auto; /* fills remaining space */
+    flex: 1 1 auto; 
     overflow-y: auto;
     overscroll-behavior: contain;
     pointer-events: auto;
-    -webkit-overflow-scrolling: touch; /* smooth scroll for iOS */
+    -webkit-overflow-scrolling: touch; 
 }
 #leaderboardScroll:focus {
     outline: none;

@@ -39,6 +39,7 @@ const MAX_BULLETS=60;
 const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 20;
+const AUTO_REMATCH_DELAY = 10000; 
 
 const BANNED_WORDS = ['fuck','ass','badass','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo', 'rapist','porn','mussolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson'];
 const WORD_ONLY_BANS = ['ass'];
@@ -51,7 +52,9 @@ const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifk
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
 
-
+let rematchQueue = new Set();
+let rematchTimer = null;
+let rematchTimerStart = null;
 let resetPending = false;
 let lastNetSend = 0;
 let lastTickTime = Date.now();
@@ -229,7 +232,37 @@ function getClientIP(socket) {
   return socket.handshake.headers['x-forwarded-for']?.split(',')[0] || socket.handshake.address;
 }
 
+function startRematch() {
+    rematchQueue.forEach(id => {
+        const p = players[id];
+        if (!p) return;
+        const pos = getSafeSpawn();
+        Object.assign(p, {
+            id, 
+            x: pos.x, 
+            y: pos.y, 
+            hp: 100, 
+            lives: 3, 
+            stamina: 100,
+            score: 0, 
+            isSpectating: false, 
+            forcedSpectator: false,
+            waitingForRematch: false, 
+            spawnProtectedUntil: Date.now() + 3000,
+            lastRegenTime: Date.now(), 
+            justDied: false, 
+            color: generateUniqueColor()
+        });
 
+        io.to(id).emit('rematchAccepted', {id: p.id, x: p.x, y: p.y, matchTimer, matchPhase, color: p.color });
+    });
+
+    rematchQueue.clear();
+    rematchTimer = null;
+    io.emit('rematchQueueUpdate', []);
+
+    maybeResetMatch();
+}
 
 function handleSuccessfulJoin(socket, name, forcedSpectator = false, waitingForRematch=false) {
     const pos = getSafeSpawn();
@@ -255,9 +288,7 @@ function handleSuccessfulJoin(socket, name, forcedSpectator = false, waitingForR
         waitingForRematch,
     };
 
-    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX: pos.x, spawnY: pos.y,name, forcedSpectator, waitingForRematch});
-
-    
+    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX: pos.x, spawnY: pos.y,name, forcedSpectator, waitingForRematch,color:players[socket.id].color});
     spawnSpecialBots();
 }
 
@@ -447,7 +478,7 @@ class Bot {
             moveSpeed *= 0.5;
         }
 
-        if (this.hp <= 45) this.isRetreating = true;
+        if (this.hp <= 35) this.isRetreating = true;
 
         if (this.isRetreating) {
             moveSpeed *= 1.25;
@@ -583,6 +614,8 @@ io.on('connection', socket => {
         delete lastFirePacket[socket.id];
 
         if (color) USED_COLORS.delete(color);
+
+        rematchQueue.delete(socket.id);
     });
 
     socket.on('rematch', () => {
@@ -598,10 +631,32 @@ io.on('connection', socket => {
             maybeResetMatch();
         }
 
-        const pos = getSafeSpawn();
-        Object.assign(p, {x: pos.x, y: pos.y, hp: 100, lives: 3, stamina: 100, score: 0, isSpectating: false, forcedSpectator: false, waitingForRematch: false, spawnProtectedUntil: Date.now() + 3000,lastRegenTime:Date.now(), justDied:false,color:generateUniqueColor()});
-        socket.emit('rematchAccepted', { x: p.x, y: p.y, matchTimer, matchPhase,color:p.color });
+        if (!rematchQueue.has(socket.id)) {
+            rematchQueue.add(socket.id);
+        }
+
+        const queueNames = Array.from(rematchQueue).map(id => {
+            const pl = players[id];
+            return pl ? pl.name : "Unknown";
+        });
+
+        const timeLeft = rematchTimerStart ? Math.max(0, AUTO_REMATCH_DELAY - (Date.now() - rematchTimerStart)) : null;
+
+        io.emit('rematchQueueUpdate', { queue: queueNames, timeLeft });
+
+        if (!rematchTimer) {
+            rematchTimerStart=Date.now();
+            rematchTimer = setTimeout(() => {
+                startRematch();
+            }, AUTO_REMATCH_DELAY);
+        }
+
+        if (rematchQueue.size === Object.values(players).filter(p => !p.forcedSpectator).length) {
+            clearTimeout(rematchTimer);
+            startRematch();
+        }
     });
+
 });
 
 
