@@ -32,14 +32,13 @@ const MAX_ATTEMPTS = 5;
 const BASE_SPEED = 4.6;
 const SPRINT_SPEED = 6.8;
 const ENTITY_RADIUS = 18;
-const MAX_PLAYERS=15;
+const MAX_PLAYERS=10;
 const JOIN_CUTOFF_SECONDS=5*60;
 const BULLET_LIFETIME = 1200;
 const MAX_BULLETS=60;
 const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 20;
-const AUTO_REMATCH_DELAY = 10000; 
 
 const BANNED_WORDS = ['fuck','ass','badass','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo', 'rapist','porn','mussolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson'];
 const WORD_ONLY_BANS = ['ass'];
