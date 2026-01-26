@@ -155,14 +155,6 @@ if (window.visualViewport) {
 }
 
 window.addEventListener('load', () => {
-    const isStandalone =
-        window.navigator.standalone === true ||
-        window.matchMedia('(display-mode: standalone)').matches;
-
-    if (isStandalone) {
-        const footer = document.getElementById('footer');
-        if (footer) footer.style.display = 'none';
-    }
     resizeCanvas();
 });
 
@@ -174,7 +166,12 @@ window.addEventListener('DOMContentLoaded', () => {
     startBtn.onclick = async () => {
         await requestFullScreen();
         const name = document.getElementById('nameInput').value;
-        socket.emit('joinGame', { name: name || "Sniper" });
+        let clientId = localStorage.getItem('clientId');
+        if (!clientId) {
+            clientId = 'c_' + Math.random().toString(36).slice(2,10);
+            localStorage.setItem('clientId', clientId);
+        }
+        socket.emit('joinGame', { name: name || "Sniper", clientId });
         document.getElementById('nameScreen').style.display = 'none';
     };
 });

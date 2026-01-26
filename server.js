@@ -40,6 +40,8 @@ const MAX_BULLETS=60;
 const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 20;
+const clientIdMap = {};
+const clientDisconnectCooldown = {};
 
 const BANNED_WORDS = ['fuck','ass','badass','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo', 'rapist','porn','mussolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson'];
 const WORD_ONLY_BANS = ['ass'];
@@ -574,11 +576,12 @@ bots['bot_bobby'].damageTakenMultiplier = 1.35;
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
         let name = (data.name || "").trim().slice(0, 14);
+        const clientId= data.clientId
         if (!name || name.toLowerCase() === "sniper") {
             name = "Sniper" + Math.floor(1000 + Math.random() * 9000);
         }
 
-        else if (!validateName(name)) {
+        if (!validateName(name)) {
             const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
             nameAttempts[key] = (nameAttempts[key] || 0) + 1;
 
@@ -589,9 +592,23 @@ io.on('connection', socket => {
                 return;
             }
 
-            socket.emit('errorMsg',`Inappropriate name, or reserved name, or name doesn't use English letters/numbers (max 14), retry again while fulfilling these requirements ${MAX_ATTEMPTS - nameAttempts[key]} attempts left.`);
+            socket.emit('errorMsg',`Inappropriate name, or reserved name, or name doesn't use English letters/numbers (max 14), retry again while fulfilling these requirements \n${MAX_ATTEMPTS - nameAttempts[key]} attempts left.`);
             return;
         }
+        if (clientId){
+            if (clientIdMap[clientId]) {
+                socket.emit('errorMsg', 'You are already connected in another tab/device.');
+                socket.disconnect();
+                return;
+            }
+            if(clientDisconnectCooldown[clientId] && Date.now()- clientDisconnectCooldown[clientId] < 3000){
+                socket.emit('errorMsg','Please wait a moment before reconnecting.');
+                socket.disconnect();
+            }
+
+            clientIdMap[data.clientId] = socket.id;
+    
+        }    
         if (Object.keys(players).length >= MAX_PLAYERS) {
             socket.emit('errorMsg', 'Match is full.');
             return;
@@ -605,10 +622,7 @@ io.on('connection', socket => {
         if (!didReset && matchPhase !== 'running') {
             waitingForRematch = true;
             forcedSpectator = false;
-        }
-
-
-        else if (matchTimer <= JOIN_CUTOFF_SECONDS) {
+        } else if (matchTimer <= JOIN_CUTOFF_SECONDS) {
             forcedSpectator = true;
         }
         
@@ -654,6 +668,12 @@ io.on('connection', socket => {
         const color = players[socket.id]?.color;
         const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
 
+        const p = players[socket.id];
+        if (p?.clientId && clientIdMap[p.clientId] === socket.id) {
+            delete clientIdMap[p.clientId];
+            clientDisconnectCooldown=Date.now();
+        }
+
         delete players[socket.id];
         delete nameAttempts[key];
         delete lastFirePacket[socket.id];
@@ -696,15 +716,26 @@ setInterval(() => {
             matchTimer = 0;
         }
     }
-    const activePlayers = Object.values(players).some(p => !p.isSpectating);
-    NET_TICK = activePlayers ? NET_TICK_ACTIVE : NET_TICK_IDLE;
+
+    const activePlayersArray = Object.values(players).filter(p => !p.isSpectating);
+    NET_TICK = activePlayersArray ? NET_TICK_ACTIVE : NET_TICK_IDLE;
 
     const now = Date.now();
     const delta = Math.min((now - lastTickTime) / 1000, 0.05);
     lastTickTime = now;
 
-    if (activePlayers && matchPhase=="running") {
-        matchTimer = Math.max(0, matchTimer - delta);
+    if (activePlayersArray.length === 0) {
+        if (matchPhase !== 'ended') {
+            console.log("No active players left. Resetting match...");
+            matchPhase = 'ended';
+            resetPending = true;
+            maybeResetMatch();
+        }
+    } else {
+        NET_TICK = NET_TICK_ACTIVE;
+        if (matchPhase === "running") {
+            matchTimer = Math.max(0, matchTimer - delta);
+        }
     }
 
     if (matchTimer <= 0 && matchPhase === 'running') {
