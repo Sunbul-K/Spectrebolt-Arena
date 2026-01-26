@@ -1,5 +1,5 @@
 /*
- * SpectreBolt Arena - Multiplayer 2D Shooter Game Server-Side
+ * Spectrebolt Arena - Multiplayer 2D Shooter Game Server-Side
  * Copyright (C) 2026 Saif Kayyali
  * GNU GPLv3
  */
@@ -644,7 +644,7 @@ setInterval(() => {
     const delta = Math.min((now - lastTickTime) / 1000, 0.05);
     lastTickTime = now;
 
-    if (activePlayers) {
+    if (activePlayers && matchPhase=="running") {
         matchTimer = Math.max(0, matchTimer - delta);
     }
 
@@ -869,6 +869,6 @@ setInterval(() => {
 }, TICK_RATE);
 
 server.listen(PORT, '0.0.0.0', () => { 
-    console.log(`SpectreBolt Arena Server Active on Port ${PORT}`); 
+    console.log(`Spectrebolt Arena Server Active on Port ${PORT}`); 
     console.log(`Running on http://localhost:${PORT}`)
 });

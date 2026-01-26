@@ -1,5 +1,5 @@
 /*
- * SpectreBolt Arena - Multiplayer 2D Shooter Game Client-Side
+ * Spectrebolt Arena - Multiplayer 2D Shooter Game Client-Side
  * Copyright (C) 2026 Saif Kayyali
  * GNU GPLv3
  */
@@ -15,6 +15,7 @@ const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 
+let pbSavedThisMatch = false;
 let rematchCountdownInterval = null;
 let gameOverSince = null;
 let lastMiniUpdate = 0;
@@ -180,7 +181,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 canvas.addEventListener('click', () => {
     if (!players[myId]) {
-        window.open('https://github.com/Sunbul-k/SpectreBolt-Arena/discussions/','_blank');
+        window.open('https://github.com/Sunbul-k/Spectrebolt-Arena/discussions/','_blank');
     }
 });
 
@@ -347,6 +348,8 @@ window.addEventListener('mousemove', e => {
 socket.on('init', d => {
     if (!d || !d.id) return;
     if (isGameOverLocked && !isRematching) return;
+    pbSavedThisMatch = false;
+
     myId = d.id;
     mapSize = d.mapSize;
     walls = d.walls;
@@ -366,6 +369,7 @@ socket.on('rematchAccepted', (data) => {
 
     isGameOverLocked = false;
     rematchRequested = false;
+    pbSavedThisMatch = false;
     gameOverSince = null;
     
     lastInput = null;
@@ -701,6 +705,21 @@ function renderWinners() {
     `;
 }
 
+function trySavePersonalBest() {
+    if (pbSavedThisMatch) return;
+
+    const me = players[myId];
+    if (!me) return;
+
+    pbSavedThisMatch = true;
+
+    if (me.score > personalBest) {
+        personalBest = me.score;
+        localStorage.setItem("personalBest", personalBest);
+    }
+}
+
+
 
 function drawCenteredText(ctx, text, yOffset = 0, lineHeight = 26) {
     ctx.save();
@@ -728,7 +747,7 @@ function draw(){
         ctx.fillStyle = "#f44";
         ctx.font = "20px monospace";
         ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 400) * 0.2;
-        drawCenteredText(ctx,"Black screen?\nTap here to report a bug",20);
+        drawCenteredText(ctx,"Black screen?\nTap here to report a bug, or refresh if ",20);
 
         ctx.globalAlpha = 1;
         return;
@@ -843,10 +862,11 @@ function draw(){
 
     const activePlayers = Object.values(players).filter(p => !p.isSpectating && !p.forcedSpectator);
 
-    if (activePlayers.length === 0 && !isRematching) {
+    if (activePlayers.length === 0 && !isRematching && matchTimer > 0) {
         if (!isGameOverLocked) {
             isGameOverLocked = true;
             gameOverSince = Date.now();
+            trySavePersonalBest();
         }
 
         document.getElementById('gameOver').style.display = 'flex';
@@ -855,14 +875,13 @@ function draw(){
 
         const me = players[myId];
         if (me) {
-            if (me.score > personalBest) {
-                personalBest = me.score;
-                localStorage.setItem("personalBest", personalBest);
+            if (me.score === personalBest) {
                 document.getElementById('score').innerHTML =`NEW PERSONAL BEST: ${me.score}`;
             } else {
                 document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
             }
         }
+
         return; 
     }
 
@@ -870,10 +889,9 @@ function draw(){
         if (!isGameOverLocked) {
             isGameOverLocked = true;
             gameOverSince = Date.now();
+            trySavePersonalBest();
         }
-        if (!gameOverSince) {
-            gameOverSince = Date.now();
-        }
+
         document.getElementById('gameOver').style.display = 'flex';
 
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -885,14 +903,13 @@ function draw(){
 
         const me = players[myId];
         if (me) {
-            if (me.score > personalBest) {
-                personalBest = me.score;
-                localStorage.setItem("personalBest", personalBest);
+            if (me.score === personalBest) {
                 document.getElementById('score').innerHTML =`NEW PERSONAL BEST: ${me.score}`;
             } else {
                 document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
             }
         }
+
         if (gameOverSince && Date.now() - gameOverSince > 15000) {
             const notice = document.getElementById('gameOverNotice');
             if (notice) {

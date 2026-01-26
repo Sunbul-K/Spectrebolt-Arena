@@ -1,4 +1,4 @@
-# SpectreBolt Arena 
+# Spectrebolt Arena 
 A real-time multiplayer 2D top-down shooter game built using **Node.js**, **Socket.io** and **HTML5 Canvas**.
 
 ---
@@ -15,7 +15,7 @@ A real-time multiplayer 2D top-down shooter game built using **Node.js**, **Sock
 ---
 
 ## Live Demo:
-Check out the game at **[SpectreBolt Arena](https://spectrebolt-arena-9xk4.onrender.com/)**
+Check out the game at **[Spectrebolt Arena](https://spectrebolt-arena-9xk4.onrender.com/)**
 
 ---
 
@@ -43,8 +43,8 @@ Check out the game at **[SpectreBolt Arena](https://spectrebolt-arena-9xk4.onren
 
 ### Step 1: Clone the repo:
 ```bash
-git clone https://github.com/Sunbul-k/SpectreBolt-Arena.git
-cd SpectreBolt-Arena
+git clone https://github.com/Sunbul-k/Spectrebolt-Arena.git
+cd Spectrebolt-Arena
 ```
 ### Step 2: Install dependencies
 ```bash
