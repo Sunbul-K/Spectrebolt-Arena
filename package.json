@@ -11,13 +11,13 @@
     "real-time",
     "shooter-game"
   ],
-  "homepage": "https://github.com/Sunbul-k/SpectreBolt-Arena#readme",
+  "homepage": "https://github.com/Sunbul-k/Spectrebolt-Arena#readme",
   "bugs": {
-    "url": "https://github.com/Sunbul-k/SpectreBolt-Arena/issues"
+    "url": "https://github.com/Sunbul-k/Spectrebolt-Arena/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Sunbul-k/SpectreBolt-Arena.git"
+    "url": "git+https://github.com/Sunbul-k/Spectrebolt-Arena.git"
   },
   "license": "GPL-3.0-only",
   "author": "Saif Kayyali",
