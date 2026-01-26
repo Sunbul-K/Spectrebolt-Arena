@@ -353,6 +353,10 @@ class Bot {
         this.lastHitTime = 0;
         this.hitChain = 0;
         this.hasFiredWhileRetreating = false;
+        this.lastAggressorId = null;
+        this.lastAggressorTime = 0;
+        this.reengageUntil = 0;
+        this.fakeRetreatUsed = false;
     }
 
     fireAtPlayers(players) {
@@ -429,6 +433,8 @@ class Bot {
     }
     updateAdvanced(players) {
         const now = Date.now();
+        const aggressive = now < this.reengageUntil;
+
         if (now - this.lastRegenTime > 3000) {
             const regen = this.isRetreating ? 2 : 5;
             this.hp = Math.min(100, this.hp + regen);
@@ -443,17 +449,33 @@ class Bot {
             moveSpeed *= 1.25;
 
             const targets = Object.values(players).filter(p => !p.isSpectating);
+
+            let preferred = null;
+            if (this.lastAggressorId && Date.now() - this.lastAggressorTime < 6000) {
+                preferred = targets.find(p => p.id === this.lastAggressorId);
+            }
+
             if (targets.length) {
-                const nearest = targets.reduce((a, b) =>
+                const nearest = preferred || targets.reduce((a, b) =>
                     Math.hypot(a.x - this.x, a.y - this.y) <
                     Math.hypot(b.x - this.x, b.y - this.y) ? a : b
                 );
 
                 const angleToPlayer = Math.atan2(nearest.y - this.y, nearest.x - this.x);
-                this.angle = angleToPlayer + Math.PI;
+                const dist = Math.hypot(nearest.x - this.x, nearest.y - this.y);
+                const leadTime = dist / this.bulletSpeed;
+                const px = nearest.x + (nearest.input?.moveX || 0) * 4 * leadTime;
+                const py = nearest.y + (nearest.input?.moveY || 0) * 4 * leadTime;
+
+                this.angle = Math.atan2(py - this.y, px - this.x);
+
 
                 const distToPlayer = Math.hypot(nearest.x - this.x, nearest.y - this.y);
-                const angleDiff = Math.abs(this.angle - angleToPlayer);
+                const angleDiff = Math.abs(Math.atan2(
+                    Math.sin(this.angle - angleToPlayer),
+                    Math.cos(this.angle - angleToPlayer)
+                ));
+
                 if (!this.hasFiredWhileRetreating && distToPlayer < 400 && angleDiff > Math.PI / 2) {
                     const id = 'bot_b' + (++bulletIdCounter);
                     bullets[id] = {
@@ -467,7 +489,36 @@ class Bot {
                     };
                     this.hasFiredWhileRetreating = true;
                 }
+
+                const chasingHard = distToPlayer < 250 && angleDiff > Math.PI * 0.75;
+
+                if (!this.fakeRetreatUsed && chasingHard && Math.random() < 0.6) {
+                    for (let i = 0; i < 3; i++) {
+                        const id = 'bot_b' + (++bulletIdCounter);
+                        bullets[id] = {
+                            id,
+                            x: this.x,
+                            y: this.y,
+                            angle: angleToPlayer + (Math.random() - 0.5) * 0.12,
+                            owner: this.id,
+                            speed: this.bulletSpeed / 60,
+                            born: now
+                        };
+                    }
+                    this.fakeRetreatUsed = true;
+                }
             }
+
+            if (aggressive && targets.length) {
+                const target = targets.reduce((a, b) =>
+                    Math.hypot(a.x - this.x, a.y - this.y) <
+                    Math.hypot(b.x - this.x, b.y - this.y) ? a : b
+                );
+
+                this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+                moveSpeed *= 1.15;
+            }
+
             const lookahead = 40; 
             let nx = this.x + Math.cos(this.angle) * moveSpeed;
             let ny = this.y + Math.sin(this.angle) * moveSpeed;
@@ -483,9 +534,16 @@ class Bot {
             this.x = nx;
             this.y = ny;
 
+            if (collidesWithWall(this.x, this.y, ENTITY_RADIUS + 4)) {
+                this.angle += Math.PI / 2;
+            }
+
+
             if (this.hp >= 70) {
                 this.isRetreating = false;
                 this.hasFiredWhileRetreating = false;
+                this.fakeRetreatUsed=false;
+                this.reengageUntil = now + 2500;
             }
 
             return;
@@ -505,6 +563,7 @@ class Bot {
         } else {
             this.wanderAngle += Math.PI;
         }
+
         this.fireAtPlayers(players);
     }
 }
@@ -730,8 +789,6 @@ setInterval(() => {
                 return;
             }
 
-            let hit = false;
-
             const livePlayers = Object.values(players).filter(p => !p.isSpectating);
             const liveBots = Object.values(bots).filter(b => !b.retired);
             for (const target of [...livePlayers, ...liveBots]) {
@@ -743,6 +800,7 @@ setInterval(() => {
                 const HIT_RADIUS = ENTITY_RADIUS + BULLET_RADIUS + 6;
 
                 let damage = 10;
+                const shooter = players[b.owner] || bots[b.owner];
                 if (dx * dx + dy * dy < HIT_RADIUS * HIT_RADIUS) {
                     if (target.id === 'bot_rob') {
                         const now = Date.now();
@@ -758,6 +816,11 @@ setInterval(() => {
                         if (now - target.lastHitTime < 400) target.recentHits++;
                         else target.recentHits = 1;
                         target.lastHitTime = now;
+                    }
+
+                    if (target.id === 'bot_eliminator' && shooter && shooter.id) {
+                        target.lastAggressorId = shooter.id;
+                        target.lastAggressorTime = Date.now();
                     }
 
                     let multiplier = target.damageTakenMultiplier ?? 1;
@@ -784,7 +847,6 @@ setInterval(() => {
                         }
 
                         target.justDied = true;
-                        const shooter = players[b.owner] || bots[b.owner];
                         const victimName = target.name;
                         const shooterName = shooter ? shooter.name : "The Void";
 
