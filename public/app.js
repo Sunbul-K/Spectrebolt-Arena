@@ -321,6 +321,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
             shootKnob.style.transform = "translate(0,0)";
         }
     }, { passive: false });
+
     document.getElementById('sprintBtn').addEventListener('touchstart', (e) => { e.preventDefault(); isMobileSprinting = true; });
     document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.preventDefault(); isMobileSprinting = false; });            
 
@@ -355,6 +356,13 @@ window.addEventListener('DOMContentLoaded', ()=>{
     });
 });
 
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        socket.disconnect();
+    }
+});
+
+
 socket.on('init', d => {
     if (!d || !d.id) return;
     if (isGameOverLocked && !isRematching) return;
@@ -374,6 +382,7 @@ socket.on('init', d => {
 socket.on('rematchDenied', (msg) => {
     alert(msg || "Cannot rematch yet or game is already resetting. Please wait a bit then try again");
     isRematching=false;
+    document.getElementById('rematchBtn').disabled=false;
 });
 socket.on('rematchAccepted', (data) => {
     if (data.id !== myId) return;
@@ -409,6 +418,7 @@ socket.on('rematchAccepted', (data) => {
     camX = players[myId].x;
     camY = players[myId].y;
 
+    document.getElementById('rematchBtn').disabled=false;
     document.getElementById('gameOver').style.display = 'none';
     document.getElementById('gameOverNotice').style.display = 'none';
 });
@@ -548,7 +558,24 @@ socket.on('EliminatorRetired', () => {
     setTimeout(() => msg.remove(), 4000);
 });
 socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
-socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
+socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; document.getElementById('startBtn').disabled=false;});
+socket.on('disconnect', (reason) => {
+    console.warn('Socket disconnected:', reason);
+    isJoining = false;
+
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn) startBtn.disabled = false;
+
+    const rematchBtn = document.getElementById('rematchBtn');
+    if (rematchBtn) rematchBtn.disabled = false;
+
+    isRematching = false;
+
+    if (!players[myId]) {
+        const nameScreen = document.getElementById('nameScreen');
+        if (nameScreen) nameScreen.style.display = 'flex';
+    }
+});
 
 
 document.getElementById('rematchBtn').onclick = () => {
@@ -556,6 +583,7 @@ document.getElementById('rematchBtn').onclick = () => {
     isRematching = true;
 
     socket.emit('rematch');
+    document.getElementById('rematchBtn').disabled=true;
 };
 
 
@@ -729,8 +757,6 @@ function trySavePersonalBest() {
         localStorage.setItem("personalBest", personalBest);
     }
 }
-
-
 
 function drawCenteredText(ctx, text, yOffset = 0, lineHeight = 26) {
     ctx.save();

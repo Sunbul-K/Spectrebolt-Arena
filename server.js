@@ -232,10 +232,11 @@ function isLeaderboardEligible(p) {
     return !p.forcedSpectator && !p.waitingForRematch;
 }
 
-function handleSuccessfulJoin(socket, name, forcedSpectator = false, waitingForRematch=false) {
+function handleSuccessfulJoin(socket, name, clientId,forcedSpectator = false, waitingForRematch=false) {
     const pos = getSafeSpawn();
     players[socket.id] = {
         id: socket.id,
+        clientId,
         name: name,
         x: pos.x, 
         y: pos.y, 
@@ -273,7 +274,7 @@ function resetMatch() {
     if (matchPhase === 'running') return;
     resetPending=false;
     matchTimer = 15 * 60;
-    USED_COLORS.clear();
+    USED_COLORS.clear()
 
     bullets = {};
 
@@ -576,7 +577,7 @@ io.on('connection', socket => {
             spawnSpecialBots();
         }
 
-        handleSuccessfulJoin(socket, name, forcedSpectator, waitingForRematch);
+        handleSuccessfulJoin(socket, name, clientId,forcedSpectator, waitingForRematch);
         console.log(`${players[socket.id].name} has joined the arena`)
     });
 
