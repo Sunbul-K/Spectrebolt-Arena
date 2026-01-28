@@ -451,8 +451,7 @@ socket.on('state', s => {
             score: b.score,
             isBot: true
         };
-    });
-    
+    }); 
     Object.entries(s.players).forEach(([id, p]) => {
         const prev = players[id] || {};
 
@@ -463,12 +462,9 @@ socket.on('state', s => {
             name: prev.name ?? p.name
         };
     });
-
-    
     Object.keys(players).forEach(id => {
         if (!s.players[id]) delete players[id];
     });
-
     
     if (players[myId] && s.players[myId]) {
         players[myId].hp = s.players[myId].hp;
@@ -493,7 +489,6 @@ socket.on('state', s => {
         return { ...p, rank };
     });
 
-
     const html = ranked.map((p, index) => {
         const isMe = p.id === myId;
         const top5Highlight = index < 5; 
@@ -506,7 +501,6 @@ socket.on('state', s => {
             <span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span>
         </div>`;
     }).join('');
-
     
     const leaderboardScroll = document.getElementById('leaderboardScroll');
     leaderboardScroll.innerHTML = html;
@@ -789,7 +783,7 @@ function draw(){
         drawCenteredText(ctx, "Waiting for map...");
         ctx.globalAlpha = 1;
         return;
-    }       
+    }  
             
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
