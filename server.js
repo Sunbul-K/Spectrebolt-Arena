@@ -117,7 +117,6 @@ function getBotSafeSpawn() {
     return { x, y };
 }
 
-
 function generateWalls(count) {
     const newWalls = [];
     const MIN_CORRIDOR_WIDTH = 120;
@@ -641,7 +640,6 @@ setInterval(() => {
     if (playerArray.length > 0) {
         const anyAlive = playerArray.some(p => !p.isSpectating);
         if (!anyAlive && matchTimer > 0) {
-            console.log("All players are ghosts. Ending match early...");
             matchTimer = 0;
         }
     }
@@ -654,9 +652,6 @@ setInterval(() => {
     NET_TICK = activePlayersArray.length > 0 ? NET_TICK_ACTIVE : NET_TICK_IDLE;
 
     if (activePlayersArray.length === 0) {
-        if (matchPhase === 'running') {
-            console.log("No active players left. Match will reset when someone joins...");
-        }
         if (matchTimer <= 0 && matchPhase !== 'ended') {
             matchPhase = 'ended';
             console.log("Match ended due to timer.");
