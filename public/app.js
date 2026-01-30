@@ -489,10 +489,18 @@ socket.on('EliminatorRetired', () => {
 });
 socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
 socket.on('errorMsg', (msg) => { 
-    alert(msg); 
+    alert(msg);
 
-    document.getElementById('nameScreen').style.display = 'flex'; 
-    document.getElementById('startBtn').disabled=false;
+    const nameScreen = document.getElementById('nameScreen');
+    const startBtn = document.getElementById('startBtn');
+
+    if (typeof msg === 'string' && msg.includes('already in the game')) {
+        window.location.reload();
+        return;
+    }
+
+    if (nameScreen) nameScreen.style.display = 'flex';
+    if (startBtn) startBtn.disabled = false;
 });
 socket.on('disconnect', (reason) => {
     trySavePersonalBest();
@@ -653,7 +661,7 @@ function trySavePersonalBest() {
     if (me.score > personalBest) {
         personalBest = me.score;
         localStorage.setItem("personalBest", personalBest);
-        
+
         const personalBestDisplay = document.getElementById('personalBestDisplay');
         if (personalBestDisplay) personalBestDisplay.innerText = `PERSONAL BEST: ${personalBest}`;
     }
