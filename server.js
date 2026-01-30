@@ -322,7 +322,6 @@ function resetMatch() {
     io.emit('matchReset', { matchTimer, matchPhase });
 }
 
-
 class Bot {
     constructor(id, name, color, speed, bulletSpeed) {
         this.id = id; 
@@ -647,7 +646,6 @@ io.on('connection', socket => {
     });
 });
 
-
 setInterval(() => {
     const playerArray = Object.values(players);
     if (playerArray.length > 0) {
@@ -826,7 +824,6 @@ setInterval(() => {
                             }
                             shooter.score += pointsAwarded;
                         }
-
 
                         io.emit('killEvent', { shooter: shooterName, victim: victimName });
 

@@ -149,7 +149,6 @@ window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300)
 
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
 
-
 window.addEventListener('load', () => resizeCanvas());
 
 let isJoining = false;
@@ -217,7 +216,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
         joyKnob.style.transform = "translate(0,0)";
         e.preventDefault();
     }, { passive: false });
-
 
     joyBase.addEventListener('touchmove', e => {
         for (const t of e.changedTouches) {
@@ -351,9 +349,7 @@ document.addEventListener('visibilitychange', () => {
     const nameScreen = document.getElementById('nameScreen');
     const gameOverScreen = document.getElementById('gameOver');
 
-    const onNameOrGameOver = 
-        (nameScreen && nameScreen.style.display !== 'none') || 
-        (gameOverScreen && gameOverScreen.style.display !== 'none');
+    const onNameOrGameOver = (nameScreen && nameScreen.style.display !== 'none') || (gameOverScreen && gameOverScreen.style.display !== 'none');
 
     if (document.hidden && !onNameOrGameOver) {
         if (socket.connected) {
@@ -404,7 +400,6 @@ socket.on('rematchAccepted', (data) => {
     spaceHeld = false;
     lastShootTime = 0;
     lastSpaceShot = 0;
-
 
     matchTimer = data.matchTimer;
 
@@ -583,6 +578,7 @@ socket.on('disconnect', (reason) => {
     if (idleDisconnectReason === 'idle') {
         alert("You were disconnected for being idle too long (over 1 minute).");
         idleDisconnectReason = null;
+        window.location.reload();
     }
 });
 
