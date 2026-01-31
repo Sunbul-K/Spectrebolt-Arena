@@ -45,6 +45,7 @@ let rematchRequested = false;
 let isGameOverLocked = false;
 let cachedStandalone = null;
 let cachedHandheld = null;
+let isViewingGameOver = false;
         
 function isHandheldLike() {
     const mq = window.matchMedia;
@@ -324,6 +325,7 @@ socket.on('rematchAccepted', (data) => {
     if (data.id !== myId) return;
 
     isGameOverLocked = false;
+    isRematching = false;
     rematchRequested = false;
     pbSavedThisMatch = false;
     gameOverSince = null;
@@ -338,8 +340,8 @@ socket.on('rematchAccepted', (data) => {
     const me = players[myId] || {};
     players[myId] = {
         ...me,
-        x: data.x ?? mapSize / 2,
-        y: data.y ?? mapSize / 2,
+        x: (typeof data.x === 'number') ? data.x : (me.x ?? mapSize / 2),
+        y: (typeof data.y === 'number') ? data.y : (me.y ?? mapSize / 2),
         hp: 100,
         lives: 3,
         score: 0,
@@ -347,15 +349,25 @@ socket.on('rematchAccepted', (data) => {
         forcedSpectator: false,
         spawnProtected: true,
         name: me.name || "Sniper",
-        color: data.color || me.color || null
+        color: data.color || me.color || me.color || null
     };
 
     camX = players[myId].x;
     camY = players[myId].y;
 
-    document.getElementById('rematchBtn').disabled=false;
-    document.getElementById('gameOver').style.display = 'none';
-    document.getElementById('gameOverNotice').style.display = 'none';
+    isViewingGameOver = false;
+    try { socket.emit('viewingGameOver', false); } catch (e) {}
+    const rematchBtn = document.getElementById('rematchBtn');
+    if (rematchBtn) rematchBtn.disabled = false;
+    const gameOverEl = document.getElementById('gameOver');
+    if (gameOverEl) gameOverEl.style.display = 'none';
+    const notice = document.getElementById('gameOverNotice');
+    if (notice) notice.style.display = 'none';
+});
+socket.on('rematchQueued', () => {
+    isRematching = true;
+    const rematchBtn = document.getElementById('rematchBtn');
+    if (rematchBtn) rematchBtn.disabled = true;
 });
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
@@ -405,6 +417,7 @@ socket.on('state', s => {
     });
 
     Object.keys(players).forEach(id => {
+        if (id === myId) return;           
         if (!s.players[id]) delete players[id];
     });
     
@@ -416,6 +429,7 @@ socket.on('state', s => {
         players[myId].spawnProtected = s.players[myId].spawnProtected;
         players[myId].stamina = s.players[myId].stamina;
         players[myId].forcedSpectator = s.players[myId].forcedSpectator;
+        players[myId].waitingForRematch = !!s.players[myId].waitingForRematch;
     }
 
     const all = Object.values(leaderboardEntities).sort((a, b) => b.score - a.score);
@@ -525,7 +539,7 @@ setInterval(() => {
     if (isGameOverLocked) return;
 
     const me = players[myId];
-    if (!me || me.isSpectating) return;
+    if (!me) return;
 
     const now = performance.now();
 
@@ -612,8 +626,9 @@ function drawMinimap() {
         miniCtx.arc(b.x * scale, b.y * scale, 3, 0, Math.PI * 2); miniCtx.fill();
     });
     Object.values(players).forEach(p => {
+        if (p.isSpectating) return;
         if (p.id !== myId) {
-            miniCtx.fillStyle = p.isSpectating ? "rgba(255,255,255,0.3)" : "white";
+            miniCtx.fillStyle = "white";
             miniCtx.beginPath(); miniCtx.arc(p.x * scale, p.y * scale, 2, 0, Math.PI * 2); miniCtx.fill();
         }
     });
@@ -791,61 +806,78 @@ function draw(){
     document.getElementById('livesText').innerText = me.lives;
     document.getElementById('staminaBar').style.width = me.stamina + "%";
 
-    const mins = Math.floor(matchTimer / 60);
+        const mins = Math.floor(matchTimer / 60);
     const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
     document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
 
     const activePlayers = Object.values(players).filter(p => !p.isSpectating && !p.forcedSpectator && p.hp > 0);
 
-    if (activePlayers.length === 0 && !isRematching && matchTimer > 0) {
+    const gameOverEl = document.getElementById('gameOver');
+    const localWaiting = !!players[myId]?.waitingForRematch;
+    const shouldShowGameOverBase = (activePlayers.length === 0 && !isRematching && matchTimer > 0) || (matchTimer <= 0 && !isRematching);
+
+    const shouldShowGameOver = localWaiting || isViewingGameOver || shouldShowGameOverBase;
+
+    if (shouldShowGameOver) {
         if (!isGameOverLocked) {
             isGameOverLocked = true;
             gameOverSince = Date.now();
             trySavePersonalBest();
         }
 
-        document.getElementById('gameOver').style.display = 'flex';
+        if (matchTimer <= 0 || activePlayers.length==0) {
+            if (gameOverEl.style.display !== 'flex') gameOverEl.style.display = 'flex';
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.fillStyle = "#111";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            renderWinners();
+            if (mapSize > 0) drawMinimap();
+
+            const me = players[myId];
+            if (me) {
+                if (me.score === personalBest) {
+                    document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
+                } else {
+                    document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
+                }
+            }
+
+            if (!isViewingGameOver) {
+                isViewingGameOver = true;
+                try { socket.emit('viewingGameOver', true); } catch (e) {}
+            }
+
+            return;
+        }
+
+        if (gameOverEl.style.display !== 'flex') gameOverEl.style.display = 'flex';
+
         renderWinners();
         if (mapSize > 0) drawMinimap();
 
         const me = players[myId];
         if (me) {
             if (me.score === personalBest) {
-                document.getElementById('score').innerHTML =`NEW PERSONAL BEST: ${me.score}`;
+                document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
             } else {
-                document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
+                document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
             }
         }
 
-        return; 
-    }
-
-    if (matchTimer <= 0 && !isRematching) {
-        if (!isGameOverLocked) {
-            isGameOverLocked = true;
-            gameOverSince = Date.now();
-            trySavePersonalBest();
-        }
-
-        document.getElementById('gameOver').style.display = 'flex';
-
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        renderWinners();
-        if (mapSize > 0) drawMinimap();
-
-        const me = players[myId];
-        if (me) {
-            if (me.score === personalBest) {
-                document.getElementById('score').innerHTML =`NEW PERSONAL BEST: ${me.score}`;
-            } else {
-                document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
-            }
+        if (!isViewingGameOver) {
+            isViewingGameOver = true;
+            try { socket.emit('viewingGameOver', true); } catch (e) {}
         }
 
         return;
+    }
+
+    if (gameOverEl.style.display !== 'none') gameOverEl.style.display = 'none';
+    if (isViewingGameOver) {
+        isViewingGameOver = false;
+        try { socket.emit('viewingGameOver', false); } catch (e) {}
     }
 
     if (Date.now() - lastMiniUpdate > 200) {
