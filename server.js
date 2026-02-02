@@ -61,6 +61,7 @@ const MAX_BULLETS=60;
 const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 15;
+const JOIN_LIMITS = new Map();
 
 // Note: Some bans are intentionally broad to prevent common abuse patterns:
 // - mom/dad/mother/father/sister/brother/baby: harassment & sexual taunts
@@ -76,7 +77,7 @@ const SAFE_SUBSTRING_BANS = ['boob','baby','mom','dad','tit','nut','egg','ass','
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
-const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer'];
+const RESERVED=['imbecile','bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer'];
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
@@ -626,6 +627,15 @@ io.on('connection', socket => {
     socket.on('joinGame', (data) => {
         let rawName = (data.name || "").trim();
         let name = rawName.slice(0, 10);
+        const now = Date.now();
+        const lastJoin = JOIN_LIMITS.get(socket.id) || 0;
+
+        if (now - lastJoin < 5000) {
+            socket.emit('errorMsg','Calm down on the join requests.');
+            return;
+        } 
+
+        JOIN_LIMITS.set(socket.id, now);
 
         if (!rawName || rawName.toLowerCase() === "sniper") {
             name = "Sniper" + randomDigits();
