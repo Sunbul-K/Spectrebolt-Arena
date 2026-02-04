@@ -522,6 +522,21 @@ socket.on('mapUpdate', d => {mapSize = d.mapSize; walls = d.walls;});
 socket.on('finalScore', ({ score }) => {
     if (pbSavedThisMatch) return;
     pbSavedThisMatch = true;
+
+    const currentPB = Number(personalBest) || 0;
+
+    if (score > currentPB) {
+        personalBest = score;
+
+        try {
+            localStorage.setItem("personalBest", score);
+        } catch (e) {}
+
+        const el = document.getElementById('score');
+        if (el) {
+            el.innerText = `PERSONAL BEST: ${score}`;
+        }
+    }
 });
 socket.on('personalBestUpdated', data => {
     const pb = Number(data?.personalBest) || 0;
@@ -534,7 +549,6 @@ socket.on('personalBestUpdated', data => {
         el.innerText = `PERSONAL BEST: ${pb}`;
     }
 });
-
 socket.on('errorMsg', (msg) => { 
     alert(msg);
 
@@ -818,7 +832,7 @@ function draw(){
     document.getElementById('livesText').innerText = me.lives;
     document.getElementById('staminaBar').style.width = me.stamina + "%";
 
-        const mins = Math.floor(matchTimer / 60);
+    const mins = Math.floor(matchTimer / 60);
     const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
     document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
 
@@ -848,7 +862,7 @@ function draw(){
 
             const me = players[myId];
             if (me) {
-                if (me.score === personalBest) {
+                if (me.score >= personalBest && me.score > 0) {
                     document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
                 } else {
                     document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
@@ -870,7 +884,7 @@ function draw(){
 
         const me = players[myId];
         if (me) {
-            if (me.score === personalBest) {
+            if (me.score >= personalBest && me.score>0) {
                 document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
             } else {
                 document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
