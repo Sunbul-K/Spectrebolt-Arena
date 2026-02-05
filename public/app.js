@@ -234,6 +234,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (personalBestDisplay) {
         const storedPb = localStorage.getItem("personalBest");
+        const pbNum = storedPb !== null ? Number(storedPb) || 0 : 0;
+        personalBest = pbNum;
         personalBestDisplay.innerText = storedPb !== null ? `PERSONAL BEST: ${storedPb}` : 'PERSONAL BEST: 0';
     }
 
@@ -539,15 +541,13 @@ socket.on('finalScore', ({ score }) => {
     }
 });
 socket.on('personalBestUpdated', data => {
-    const pb = Number(data?.personalBest) || 0;
-    personalBest = pb;
-    try {
-        localStorage.setItem("personalBest", pb);
-    } catch (e) {}
+    const serverPb = Number(data?.personalBest) || 0;
+    const storedPb = Number(localStorage.getItem("personalBest")) || 0;
+    const best = Math.max(serverPb, storedPb);
+    personalBest = best;
+    try { localStorage.setItem("personalBest", best); } catch (e) {}
     const el = document.getElementById('personalBestDisplay');
-    if (el) {
-        el.innerText = `PERSONAL BEST: ${pb}`;
-    }
+    if (el) el.innerText = `PERSONAL BEST: ${best}`;
 });
 socket.on('errorMsg', (msg) => { 
     alert(msg);

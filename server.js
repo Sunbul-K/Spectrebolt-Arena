@@ -48,6 +48,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 10000;
+const PB_FILE = process.env.PB_FILE || path.join(__dirname, 'personal_bests.json');
 
 const activeRematches = new Set();
 const MAP_SIZE = 2000;
@@ -64,7 +65,6 @@ const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 15;
 const JOIN_LIMITS = new Map();
 const personalBests = new Map();
-const PB_FILE = path.join(__dirname, 'personal_bests.json');
 
 // Note: Some bans are intentionally broad to prevent common abuse patterns:
 // - mom/dad/mother/father/sister/brother/baby: harassment & sexual taunts
@@ -203,36 +203,44 @@ function isNameTaken(name) {
 
 function loadPersonalBestsFromDisk() {
   try {
-    if (!fs.existsSync(PB_FILE)) return;
+    if (!fs.existsSync(PB_FILE)) {
+      console.log('PB file does not exist at', PB_FILE);
+      return;
+    }
     const raw = fs.readFileSync(PB_FILE, 'utf8');
     const obj = JSON.parse(raw || '{}');
     for (const [k, v] of Object.entries(obj)) {
       personalBests.set(k, Number(v) || 0);
     }
-    console.log(`Loaded ${personalBests.size} personal best(s) from disk`);
+    console.log(`Loaded ${personalBests.size} personal best(s) from disk (${PB_FILE})`);
   } catch (e) {
-    console.warn('Failed to load personal bests:', e);
+    console.warn('Failed to load personal bests from disk:', e);
   }
 }
 
 function persistPBsSyncAtomic() {
+  const obj = Object.fromEntries(personalBests);
   try {
-    const obj = Object.fromEntries(personalBests);
     const tmp = PB_FILE + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(obj), { encoding: 'utf8' });
     fs.renameSync(tmp, PB_FILE);
+    console.log(`Saved ${personalBests.size} PB(s) to ${PB_FILE}`);
   } catch (e) {
-    console.error('Failed to persist personal bests (sync):', e);
+    console.warn('Failed to write PB file to local disk:', e);
   }
 }
 
 function maybeSavePB(p) {
-  if (!p || !p.uuid) return { personalBest: 0, isNew: false };
+  if (!p || !p.uuid) {
+    console.warn('maybeSavePB called with missing player or uuid', !!p, p?.id);
+    return { personalBest: 0, isNew: false };
+  }
 
   const prev = personalBests.get(p.uuid) || 0;
   if (p.score > prev) {
     personalBests.set(p.uuid, p.score);
     persistPBsSyncAtomic();
+    console.log(`PB updated: uuid=${p.uuid} new=${p.score} old=${prev}`);
     return { personalBest: p.score, isNew: true };
   }
   return { personalBest: prev, isNew: false };
