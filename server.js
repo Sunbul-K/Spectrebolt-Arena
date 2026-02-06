@@ -98,7 +98,8 @@ let bulletAccumulator = 0;
 let NET_TICK = NET_TICK_IDLE;
 let matchPhase = 'running'; 
 let lastFirePacket = {};
-let _pbSaveTimer = null;
+let resetLock = false;
+let roundCounter = 0;
 
 const leetMap = {
     '0': ['o'], 
@@ -359,7 +360,7 @@ function spawnSpecialBots() {
 }
 
 function isLeaderboardEligible(p) {
-    return !p.forcedSpectator;
+    return !p.forcedSpectator && !p.waitingForRematch && !p.viewingGameOver;
 }
 
 function handleSuccessfulJoin(socket, name,forcedSpectator = false, waitingForRematch=false) {
@@ -407,62 +408,110 @@ function maybeResetMatch() {
     return false;
 }
 
-function resetMatch() {
-    matchTimer = 15 * 60;
-    USED_COLORS.clear();
+function resetMatch({ preserveViewing = false } = {}) {
+    if (resetLock) return;
+    resetLock = true;
 
-    bullets = {};
+    try {
+        matchTimer = 15 * 60;
+        USED_COLORS.clear();
 
-    walls = generateWalls(12);
+        bullets = {};
 
-    bots = {};
-    bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
-    bots['bot_bobby'].damageTakenMultiplier = 1.35;
+        walls = generateWalls(12);
 
-    specialsSpawned.eliminator = false;
-    specialsSpawned.rob = false;
-    specialsSpawnTimeout = null;
-    spawnSpecialBots();
+        bots = {};
+        bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
+        bots['bot_bobby'].damageTakenMultiplier = 1.35;
 
-    const anyWantsRematch = Object.values(players).some(p => p.wantsRematch);
+        specialsSpawned.eliminator = false;
+        specialsSpawned.rob = false;
+        specialsSpawnTimeout = null;
+        spawnSpecialBots();
 
-    Object.values(players).forEach(p => {
-        const pos = getSafeSpawn();
-        if (anyWantsRematch) {
-            if (p.wantsRematch) {
-                Object.assign(p, {
-                    id: p.id,
-                    x: pos.x,
-                    y: pos.y,
-                    color: generateUniqueColor(),
-                    hp: 100,
-                    lives: 3,
-                    stamina: 100,
-                    spawnProtectedUntil: Date.now() + 3000,
-                    lastRegenTime: Date.now(),
-                    isSpectating: false,
-                    waitingForRematch: false,
-                    forcedSpectator: false,
-                    score: 0,
-                    input: { moveX: 0, moveY: 0, sprint: false, angle: 0 },
-                    damageTakenMultiplier: 1,
-                    lastFireTime: 0,
-                    fireCooldown: 100,
-                    justDied: false,
-                    wantsRematch: false,
-                    viewingGameOver: false
-                });
-            } else {
-                Object.assign(p, {
-                    isSpectating: true,
-                    waitingForRematch: true,
-                    hp: 0,
-                    lives: 0,
-                    score: 0,
-                    wantsRematch: false
-                });
+        roundCounter++;
+
+        const anyWantsRematch = Object.values(players).some(p => p.wantsRematch);
+        const preservedViewers = [];
+
+        Object.values(players).forEach(p => {
+            const pos = getSafeSpawn();
+
+            if (anyWantsRematch) {
+                if (p.wantsRematch) {
+                    Object.assign(p, {
+                        id: p.id,
+                        x: pos.x,
+                        y: pos.y,
+                        color: generateUniqueColor(),
+                        hp: 100,
+                        lives: 3,
+                        stamina: 100,
+                        spawnProtectedUntil: Date.now() + 3000,
+                        lastRegenTime: Date.now(),
+                        isSpectating: false,
+                        waitingForRematch: false,
+                        forcedSpectator: false,
+                        score: 0,
+                        input: { moveX: 0, moveY: 0, sprint: false, angle: 0 },
+                        damageTakenMultiplier: 1,
+                        lastFireTime: 0,
+                        fireCooldown: 100,
+                        justDied: false,
+                        wantsRematch: false,
+                        viewingGameOver: false
+                    });
+                } else {
+                    Object.assign(p, {
+                        isSpectating: true,
+                        waitingForRematch: true,
+                        hp: 0,
+                        lives: 0,
+                        score: 0,
+                        wantsRematch: false
+                    });
+                }
+                return;
             }
-        } else {
+
+            if (preserveViewing) {
+                if (p.viewingGameOver && !p.wantsRematch) {
+                    Object.assign(p, {
+                        isSpectating: true,
+                        waitingForRematch: true,
+                        hp: 0,
+                        lives: 0,
+                        score: 0,
+                        wantsRematch: false
+                    });
+                    preservedViewers.push(p.id);
+                } else {
+                    Object.assign(p, {
+                        id: p.id,
+                        x: pos.x,
+                        y: pos.y,
+                        color: generateUniqueColor(),
+                        hp: 100,
+                        lives: 3,
+                        stamina: 100,
+                        spawnProtectedUntil: Date.now() + 3000,
+                        lastRegenTime: Date.now(),
+                        isSpectating: false,
+                        waitingForRematch: false,
+                        forcedSpectator: false,
+                        score: 0,
+                        input: { moveX: 0, moveY: 0, sprint: false, angle: 0 },
+                        damageTakenMultiplier: 1,
+                        lastFireTime: 0,
+                        fireCooldown: 100,
+                        justDied: false,
+                        wantsRematch: false,
+                        viewingGameOver: false
+                    });
+                }
+                return;
+            }
+
             Object.assign(p, {
                 id: p.id,
                 x: pos.x,
@@ -485,12 +534,21 @@ function resetMatch() {
                 wantsRematch:false,
                 viewingGameOver:false
             });
-        }
-    });
+        });
 
-    io.emit('mapUpdate', { mapSize: MAP_SIZE, walls });
-    matchPhase = 'running';
-    io.emit('matchReset', { matchTimer, matchPhase });
+        io.emit('mapUpdate', { mapSize: MAP_SIZE, walls });
+        matchPhase = 'running';
+        io.emit('matchReset', { matchTimer, matchPhase });
+        if (preserveViewing && preservedViewers.length) {
+            preservedViewers.forEach(id => {
+                try { io.to(id).emit('connectionStalled'); } catch (e) {}
+            });
+        }
+
+        return true;
+    } finally {
+        resetLock = false;
+    }
 }
 
 class Bot {
@@ -746,18 +804,21 @@ io.on('connection', socket => {
         let forcedSpectator = false;
         let waitingForRematch = false;
 
-        const didReset = maybeResetMatch();
+        if (matchPhase === 'ended') {
+            resetMatch({ preserveViewing: true });
+            forcedSpectator = false;
+            waitingForRematch = false;
+        } else {
+            if (matchTimer <= JOIN_CUTOFF_SECONDS) {
+                forcedSpectator = true;
+            }
+            if (matchPhase !== 'running') waitingForRematch = true;
 
-        if (!didReset && matchPhase !== 'running') {
-            waitingForRematch = true;
-        } else if (matchTimer <= JOIN_CUTOFF_SECONDS) {
-            forcedSpectator = true;
-        }
-
-        if (!Object.keys(players).length && Object.keys(bots).length === 0) {
-            bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
-            bots['bot_bobby'].damageTakenMultiplier = 1.35;
-            spawnSpecialBots();
+            if (!Object.keys(players).length && Object.keys(bots).length === 0) {
+                bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
+                bots['bot_bobby'].damageTakenMultiplier = 1.35;
+                spawnSpecialBots();
+            }
         }
 
         handleSuccessfulJoin(socket, name, forcedSpectator, waitingForRematch);
@@ -802,6 +863,11 @@ io.on('connection', socket => {
         const p = players[socket.id];
         if (!p) return;
         p.viewingGameOver = !!val;
+        if (p.viewingGameOver) {
+            p.viewingGameOverRound = roundCounter;
+        } else {
+            delete p.viewingGameOverRound;
+        }
     });
     socket.on('disconnect', () => { 
         console.log(`${socket.playerName ?? 'Unknown player'} has left the arena`);
@@ -853,17 +919,21 @@ io.on('connection', socket => {
                 viewingGameOver: false
             });
 
-        socket.emit('rematchAccepted', { id: p.id, x: p.x, y: p.y, matchTimer, matchPhase, color: p.color });
-        activeRematches.delete(socket.id);
-        return;
-    }
+            socket.emit('rematchAccepted', { id: p.id, x: p.x, y: p.y, matchTimer, matchPhase, color: p.color });
+            activeRematches.delete(socket.id);
+            return;
+        }
 
-    if (matchPhase === 'ended') {
-        maybeResetMatch();
-        socket.emit('rematchAccepted', { id: p.id, matchTimer, matchPhase, color: p.color });
-        activeRematches.delete(socket.id);
-        return;
-    }
+        if (matchPhase === 'ended') {
+            const didReset = resetMatch({ preserveViewing: true });
+            if (!didReset) {
+                waitingForRematch = true;
+                forcedSpectator = false;
+            } else {
+                waitingForRematch = false;
+                forcedSpectator = false;
+            }
+        }
 
         socket.emit('rematchQueued');
         activeRematches.delete(socket.id);
@@ -902,6 +972,16 @@ setInterval(() => {
             matchTimer = Math.max(0, matchTimer - delta);
         }
     }
+
+    Object.values(players).forEach(p => {
+        try {
+            if (p.viewingGameOverRound !== undefined && roundCounter >= (p.viewingGameOverRound + 2)) {
+                io.to(p.id).emit('forceReload');
+                delete p.viewingGameOverRound;
+                p.viewingGameOver = false;
+            }
+        } catch (e) {}
+    });
 
     Object.values(players).forEach(p => {
         if (p.waitingForRematch) return;

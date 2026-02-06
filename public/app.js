@@ -15,6 +15,7 @@ const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 
+let isConnectionStalled = false;
 let isJoining = false;
 let isRematching = false;
 let pbSavedThisMatch = false;
@@ -318,8 +319,7 @@ canvas.addEventListener('touchstart', tryReload, { passive: true });
 
 socket.on('init', d => {
     if (!d || !d.id) return;
-    if (isGameOverLocked && !isRematching) return;
-    isJoining=false;
+    isJoining = false;
     pbSavedThisMatch = false;
 
     myId = d.id;
@@ -327,10 +327,35 @@ socket.on('init', d => {
     walls = d.walls;
     const isForcedSpectator = !!d.forcedSpectator;
 
-    players[d.id] = {id: d.id,x: d.spawnX ?? mapSize / 2,y: d.spawnY ?? mapSize / 2,angle: 0,hp: isForcedSpectator ? 0 : 100,stamina: 100,lives: isForcedSpectator ? 0 : 3,score: 0,name: d.name || "Sniper",color: d.color || null,isSpectating: isForcedSpectator,forcedSpectator: isForcedSpectator,spawnProtected: true};
+    players[d.id] = {
+        id: d.id,
+        x: d.spawnX ?? mapSize / 2,
+        y: d.spawnY ?? mapSize / 2,
+        angle: 0,
+        hp: isForcedSpectator ? 0 : 100,
+        stamina: 100,
+        lives: isForcedSpectator ? 0 : 3,
+        score: 0,
+        name: d.name || "Sniper",
+        color: d.color || null,
+        isSpectating: isForcedSpectator,
+        forcedSpectator: isForcedSpectator,
+        spawnProtected: true,
+        waitingForRematch: !!d.waitingForRematch
+    };
 
     camX = players[d.id].x;
     camY = players[d.id].y;
+});
+socket.on('connectionStalled', () => {
+    isConnectionStalled = true;
+    const winnerBox = document.getElementById('winnerList');
+    if (winnerBox) {
+        winnerBox.innerText = "CONNECTION STALLED — A NEW MATCH STARTED";
+    }
+});
+socket.on('forceReload', () => {
+    try { location.reload(); } catch (e) {}
 });
 socket.on('rematchDenied', (msg) => {
     alert(msg || "Cannot rematch yet or game is already resetting. Please wait a bit then try again");
@@ -340,6 +365,7 @@ socket.on('rematchDenied', (msg) => {
 socket.on('rematchAccepted', (data) => {
     if (data.id !== myId) return;
 
+    isConnectionStalled = false;
     isGameOverLocked = false;
     isRematching = false;
     rematchRequested = false;
@@ -377,8 +403,6 @@ socket.on('rematchAccepted', (data) => {
     if (rematchBtn) rematchBtn.disabled = false;
     const gameOverEl = document.getElementById('gameOver');
     if (gameOverEl) gameOverEl.style.display = 'none';
-    const notice = document.getElementById('gameOverNotice');
-    if (notice) notice.style.display = 'none';
 });
 socket.on('rematchQueued', () => {
     isRematching = true;
@@ -685,6 +709,11 @@ function drawMinimap() {
 function renderWinners() {
     const winnerBox = document.getElementById('winnerList');
     if (!winnerBox) return;
+
+    if (isConnectionStalled) {
+        winnerBox.innerHTML = `<div style="color: #f54242;">CONNECTION STALLED — A NEW MATCH STARTED</div>`;
+        return;
+    }
 
     const all = Object.values(leaderboardEntities).sort((a, b) => b.score - a.score);
 
