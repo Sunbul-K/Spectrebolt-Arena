@@ -34,7 +34,8 @@ let mouseAngle = 0;
 let isMobileSprinting = false;
 let joy = { active: false, startX: 0, startY: 0, id: null, x:0, y:0 };
 let shootJoy = {active:false, x:0, y:0, id:null}
-let camX=0; let camY=0;
+let camX=0; 
+let camY=0;
 let moveTouchId = null;
 let personalBest = null;
 let lastInput = null;
@@ -47,6 +48,7 @@ let isGameOverLocked = false;
 let cachedStandalone = null;
 let cachedHandheld = null;
 let isViewingGameOver = false;
+let finalResults = [];
         
 function isHandheldLike() {
     const mq = window.matchMedia;
@@ -322,6 +324,11 @@ socket.on('init', d => {
     isJoining = false;
     pbSavedThisMatch = false;
 
+    isConnectionStalled = false;
+    isGameOverLocked = false;
+    isViewingGameOver = false;
+    finalResults = [];
+
     myId = d.id;
     mapSize = d.mapSize;
     walls = d.walls;
@@ -344,15 +351,24 @@ socket.on('init', d => {
         waitingForRematch: !!d.waitingForRematch
     };
 
-    camX = players[d.id].x;
-    camY = players[d.id].y;
+    const gameOverEl = document.getElementById('gameOver');
+    if (gameOverEl) gameOverEl.style.display = 'none';
+
+    try { socket.emit('viewingGameOver', false); } catch (e) {}
+
+    if (d && d.id && players[d.id]) {
+        camX = players[d.id].x;
+        camY = players[d.id].y;
+    } else if (players[myId]) {
+        camX = players[myId].x;
+        camY = players[myId].y;
+    }
 });
 socket.on('connectionStalled', () => {
-    isConnectionStalled = true;
-    const winnerBox = document.getElementById('winnerList');
-    if (winnerBox) {
-        winnerBox.innerText = "CONNECTION STALLED — A NEW MATCH STARTED";
-    }
+  isConnectionStalled = true;
+  finalResults = [];
+  const winnerBox = document.getElementById('winnerList');
+  if (winnerBox) winnerBox.innerText = "CONNECTION STALLED — A NEW MATCH STARTED";
 });
 socket.on('forceReload', () => {
     try { location.reload(); } catch (e) {}
@@ -371,6 +387,7 @@ socket.on('rematchAccepted', (data) => {
     rematchRequested = false;
     pbSavedThisMatch = false;
     gameOverSince = null;
+    finalResults = [];
     
     lastInput = null;
     spaceHeld = false;
@@ -409,6 +426,26 @@ socket.on('rematchQueued', () => {
     const rematchBtn = document.getElementById('rematchBtn');
     if (rematchBtn) rematchBtn.disabled = true;
 });
+socket.on('matchReset', (data) => {
+  try {
+    finalResults = [];
+    isConnectionStalled = true;
+    isViewingGameOver = false;
+    isGameOverLocked = false;
+
+    const gameOverEl = document.getElementById('gameOver');
+    if (gameOverEl) gameOverEl.style.display = 'none';
+
+    try { socket.emit('viewingGameOver', false); } catch (e) {}
+
+    const winnerBox = document.getElementById('winnerList');
+    if (winnerBox) winnerBox.innerText = "CONNECTION STALLED — A NEW MATCH STARTED";
+
+    if (data && typeof data.matchTimer === 'number') matchTimer = data.matchTimer;
+  } catch (e) {
+    console.error('matchReset handler error', e);
+  }
+});
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
     if (!feed) return;
@@ -421,6 +458,9 @@ socket.on('killEvent', (data) => {
     }
 
     setTimeout(() => msg.remove(), 4000);
+});
+socket.on('finalResults', data => {
+    finalResults = Array.isArray(data?.results) ? data.results : [];
 });
 socket.on('state', s => {
     matchTimer = s.matchTimer;
@@ -715,15 +755,27 @@ function renderWinners() {
         return;
     }
 
-    const all = Object.values(leaderboardEntities).sort((a, b) => b.score - a.score);
+    let all = Array.isArray(finalResults) && finalResults.length ? finalResults.slice() : Object.values(leaderboardEntities || {});
+
+    const hasHumanInLeaderboard = all.some(e => !e.isBot);
+    if (!hasHumanInLeaderboard) {
+        const seen = new Set(all.map(a => a.id));
+        Object.values(players || {}).forEach(p => {
+            if (!p || seen.has(p.id)) return;
+            const score = Number(p.score) || 0;
+            all.push({ id: p.id, name: p.name || 'Player', score, isBot: false });
+            seen.add(p.id);
+        });
+    }
 
     if (!all.length) {
         winnerBox.innerHTML = `<div>No winners this round.</div>`;
         return;
     }
 
-    const topScore = all[0].score;
-    const winners = all.filter(p => p.score === topScore);
+    const sorted = all.slice().sort((a, b) => b.score - a.score);
+    const topScore = sorted[0].score;
+    const winners = sorted.filter(p => p.score === topScore);
 
     winnerBox.innerHTML = `
         <div style="margin-bottom: 10px;">
@@ -754,144 +806,168 @@ function drawCenteredText(ctx, text, yOffset = 0, lineHeight = 26) {
 }
 
 function draw(){
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (isJoining || !players[myId]) {
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle = "#f44";
-        ctx.font = "20px monospace";
-        drawCenteredText(ctx, isJoining ? "Joining game...\nTaking a while? Tap here to refresh. " : "Black screen?\nTap here to refresh. ", 20);
-        return;
-    }
-
-    if (!mapSize || !walls) {
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle = "#fa0";
-        ctx.font = "20px monospace";
-        ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 400) * 0.2;
-        drawCenteredText(ctx, "Waiting for map...");
-        ctx.globalAlpha = 1;
-        return;
-    }  
-            
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-    ctx.fillStyle = "#111";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const banner = document.getElementById('lateSpectatorBanner');
-    const me = players[myId];
-
-    if (me?.forcedSpectator && matchTimer > 0) {
-        banner.style.display = 'block';
-    } else {
-        banner.style.display = 'none';
-    }
-    if (!me || !Number.isFinite(me.x) || !Number.isFinite(me.y)) {
+    try{
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        return;
-    }
-
-    if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
-        camX = me.x;
-        camY = me.y;
-    }
-
-    ctx.save();
-    const CAM_LERP = 0.22;
-    camX += (me.x - camX) * CAM_LERP;
-    camY += (me.y - camY) * CAM_LERP;
-
-    if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
-        camX = me.x;
-        camY = me.y;
-    }
-
-    const rawZoom = Math.min(canvas.width, canvas.height) / BASE_VIEW_SIZE;
-    const zoom = Math.max(0.8, Math.min(1.4, rawZoom));
-
-    if (!Number.isFinite(zoom) || zoom <= 0) return;
-
-    ctx.scale(zoom, zoom);
-    ctx.translate(canvas.width / (2 * zoom) - camX,canvas.height / (2 * zoom) - camY);
-
-    ctx.fillStyle = "#006666";
-    ctx.fillRect(0, 0, mapSize, mapSize);
-
-    ctx.strokeStyle = "rgba(0,0,0,0.2)";
-    for (let i = 0; i <= mapSize; i += 100) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, mapSize); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(mapSize, i); ctx.stroke();
-    }
-
-    walls.forEach(w => {
-        ctx.fillStyle = "#333";
-        ctx.fillRect(w.x, w.y, w.w, w.h);
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 4;
-        ctx.strokeRect(w.x, w.y, w.w, w.h);
-    });
-    Object.values(bullets).forEach(b => {
-        if (Math.abs(b.x - camX) > canvas.width || Math.abs(b.y - camY) > canvas.height) return;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff0";
-        ctx.fill();
-    });
-    Object.values(bots).forEach(b => {
-        if (b.retired) return;
-        b.renderX = lerp(b.renderX || b.x, b.x, 0.15);
-        b.renderY = lerp(b.renderY || b.y, b.y, 0.15);
-        drawEntity({ ...b, x: b.renderX, y: b.renderY }, b.color, b.name, false);
-    });
-    Object.values(players).forEach(p => {
-        if (p.id === myId) return;
-        p.renderX = lerp(p.renderX || p.x, p.x, 0.15);
-        p.renderY = lerp(p.renderY || p.y, p.y, 0.15);
-        drawEntity({ ...p, x: p.renderX, y: p.renderY }, p.color, p.name, false);
-    });
-
-    drawEntity(me, me.color, me.name, true);
-    ctx.restore();
-
-    document.getElementById('hpText').innerText = Math.ceil(me.hp);
-    document.getElementById('livesText').innerText = me.lives;
-    document.getElementById('staminaBar').style.width = me.stamina + "%";
-
-    const mins = Math.floor(matchTimer / 60);
-    const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
-    document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
-
-    const activePlayers = Object.values(players).filter(p => !p.isSpectating && !p.forcedSpectator && p.hp > 0);
-
-    const gameOverEl = document.getElementById('gameOver');
-    const localWaiting = !!players[myId]?.waitingForRematch;
-    const shouldShowGameOverBase = (activePlayers.length === 0 && !isRematching && matchTimer > 0) || (matchTimer <= 0 && !isRematching);
-
-    const shouldShowGameOver = localWaiting || isViewingGameOver || shouldShowGameOverBase;
-
-    if (shouldShowGameOver) {
-        if (!isGameOverLocked) {
-            isGameOverLocked = true;
-            gameOverSince = Date.now();
+        if (isJoining || !players[myId]) {
+            ctx.fillStyle = "#111";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#f44";
+            ctx.font = "20px monospace";
+            drawCenteredText(ctx, isJoining ? "Joining game...\nTaking a while? Tap here to refresh. " : "Black screen?\nTap here to refresh. ", 20);
+            return;
         }
 
-        if (matchTimer <= 0 || activePlayers.length==0) {
-            if (gameOverEl.style.display !== 'flex') gameOverEl.style.display = 'flex';
+        if (!mapSize || !walls) {
+            ctx.fillStyle = "#111";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#fa0";
+            ctx.font = "20px monospace";
+            ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 400) * 0.2;
+            drawCenteredText(ctx, "Waiting for map...");
+            ctx.globalAlpha = 1;
+            return;
+        }  
+            
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
 
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const banner = document.getElementById('lateSpectatorBanner');
+        const me = players[myId];
+        if(banner){
+            if (me?.forcedSpectator && matchTimer > 0) {
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+        if (!me || !Number.isFinite(me.x) || !Number.isFinite(me.y)) {
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.fillStyle = "#111";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
+            camX = me.x;
+            camY = me.y;
+        }
+
+        ctx.save();
+        const CAM_LERP = 0.22;
+        camX += (me.x - camX) * CAM_LERP;
+        camY += (me.y - camY) * CAM_LERP;
+
+        if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
+            camX = me.x;
+            camY = me.y;
+        }
+
+        const rawZoom = Math.min(canvas.width, canvas.height) / BASE_VIEW_SIZE;
+        const zoom = Math.max(0.8, Math.min(1.4, rawZoom));
+
+        if (!Number.isFinite(zoom) || zoom <= 0) return;
+
+        ctx.scale(zoom, zoom);
+        ctx.translate(canvas.width / (2 * zoom) - camX,canvas.height / (2 * zoom) - camY);
+
+        ctx.fillStyle = "#006666";
+        ctx.fillRect(0, 0, mapSize, mapSize);
+
+        ctx.strokeStyle = "rgba(0,0,0,0.2)";
+        for (let i = 0; i <= mapSize; i += 100) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, mapSize); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(mapSize, i); ctx.stroke();
+        }
+
+        walls.forEach(w => {
+            ctx.fillStyle = "#333";
+            ctx.fillRect(w.x, w.y, w.w, w.h);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(w.x, w.y, w.w, w.h);
+        });
+        Object.values(bullets).forEach(b => {
+            if (Math.abs(b.x - camX) > canvas.width || Math.abs(b.y - camY) > canvas.height) return;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = "#ff0";
+            ctx.fill();
+        });
+        Object.values(bots).forEach(b => {
+            if (b.retired) return;
+            b.renderX = lerp(b.renderX || b.x, b.x, 0.15);
+            b.renderY = lerp(b.renderY || b.y, b.y, 0.15);
+            drawEntity({ ...b, x: b.renderX, y: b.renderY }, b.color, b.name, false);
+        });
+        Object.values(players).forEach(p => {
+            if (p.id === myId) return;
+            p.renderX = lerp(p.renderX || p.x, p.x, 0.15);
+            p.renderY = lerp(p.renderY || p.y, p.y, 0.15);
+            drawEntity({ ...p, x: p.renderX, y: p.renderY }, p.color, p.name, false);
+        });
+
+        drawEntity(me, me.color, me.name, true);
+        ctx.restore();
+
+        document.getElementById('hpText').innerText = Math.ceil(me.hp);
+        document.getElementById('livesText').innerText = me.lives;
+        document.getElementById('staminaBar').style.width = me.stamina + "%";
+
+        const mins = Math.floor(matchTimer / 60);
+        const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
+        document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
+
+        const activePlayers = Object.values(players).filter(p => !p.isSpectating && !p.forcedSpectator && p.hp > 0);
+
+        const gameOverEl = document.getElementById('gameOver');
+        const localWaiting = !!players[myId]?.waitingForRematch;
+        const shouldShowGameOverBase = (activePlayers.length === 0 && !isRematching && matchTimer > 0) || (matchTimer <= 0 && !isRematching);
+
+        const shouldShowGameOver = localWaiting || isViewingGameOver || shouldShowGameOverBase;
+
+        if (shouldShowGameOver) {
+            if (!isGameOverLocked) {
+                isGameOverLocked = true;
+                gameOverSince = Date.now();
+            }
+
+            if (matchTimer <= 0 || activePlayers.length==0) {
+                if (gameOverEl.style.display !== 'flex') gameOverEl.style.display = 'flex';
+
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.fillStyle = "#111";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                renderWinners();
+                if (mapSize > 0) drawMinimap();
+
+                const me = players[myId];
+                if (me) {
+                    if (me.score >= personalBest && me.score > 0) {
+                        document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
+                    } else {
+                        document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
+                    }
+                }
+
+                if (!isViewingGameOver) {
+                    isViewingGameOver = true;
+                    try { socket.emit('viewingGameOver', true); } catch (e) {}
+                }
+
+                return;
+            }
+
+            if (gameOverEl.style.display !== 'flex') gameOverEl.style.display = 'flex';
 
             renderWinners();
             if (mapSize > 0) drawMinimap();
 
             const me = players[myId];
             if (me) {
-                if (me.score >= personalBest && me.score > 0) {
+                if (me.score >= personalBest && me.score>0) {
                     document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
                 } else {
                     document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
@@ -906,40 +982,21 @@ function draw(){
             return;
         }
 
-        if (gameOverEl.style.display !== 'flex') gameOverEl.style.display = 'flex';
-
-        renderWinners();
-        if (mapSize > 0) drawMinimap();
-
-        const me = players[myId];
-        if (me) {
-            if (me.score >= personalBest && me.score>0) {
-                document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
-            } else {
-                document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
-            }
+        if (gameOverEl.style.display !== 'none') gameOverEl.style.display = 'none';
+        if (isViewingGameOver) {
+            isViewingGameOver = false;
+            try { socket.emit('viewingGameOver', false); } catch (e) {}
         }
 
-        if (!isViewingGameOver) {
-            isViewingGameOver = true;
-            try { socket.emit('viewingGameOver', true); } catch (e) {}
+        if (Date.now() - lastMiniUpdate > 200) {
+            if (mapSize > 0) drawMinimap();
+            lastMiniUpdate = Date.now();
         }
 
-        return;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }catch(e){
+        console.error('Render error (recovering):', e);
     }
-
-    if (gameOverEl.style.display !== 'none') gameOverEl.style.display = 'none';
-    if (isViewingGameOver) {
-        isViewingGameOver = false;
-        try { socket.emit('viewingGameOver', false); } catch (e) {}
-    }
-
-    if (Date.now() - lastMiniUpdate > 200) {
-        if (mapSize > 0) drawMinimap();
-        lastMiniUpdate = Date.now();
-    }
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 let howToMode = 'mobile';
