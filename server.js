@@ -709,6 +709,9 @@ class Bot {
         this.fireAtPlayers(players);
     }
     updateAdvanced(players) {
+        if (!this || !this.id || this.id !== 'bot_eliminator') {
+            return; 
+        }
         const now = Date.now();
     
         if (now - this.lastRegenTime > 3000) {
@@ -717,8 +720,8 @@ class Bot {
             this.lastRegenTime = now;
         }
 
-        let moveSpeed = this.speed;
-        if (this.id === 'bot_eliminator' && now - this.lastFireTime < 600) moveSpeed *= 0.5;
+        let moveSpeed = Math.max(0.5, this.speed);
+        if (this.id === 'bot_eliminator' && now - this.lastFireTime < 600) moveSpeed = Math.max(0.2, moveSpeed * 0.5);
 
         const targets = Object.values(players).filter(p => !p.isSpectating);
         const hasActiveThreat = targets.length > 0;
@@ -729,7 +732,7 @@ class Bot {
         }
     
         if (this.isRetreating) {
-            moveSpeed *= 1.5;
+            moveSpeed = Math.min(this.speed * 3, moveSpeed * 1.5);
 
             if (targets.length) {
                 let primaryTarget = targets[0];
@@ -750,14 +753,17 @@ class Bot {
                     );
                 }
 
+                if (!primaryTarget) return;
+
+                const distToPlayer = Math.hypot(primaryTarget.x - this.x, primaryTarget.y - this.y);
+                if (distToPlayer < 1) return; 
+
                 const angleToPlayer = Math.atan2(primaryTarget.y - this.y, primaryTarget.x - this.x);
                 const retreatAngle = angleToPlayer + Math.PI; 
                 
                 const angleDiff = retreatAngle - this.angle;
                 const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
                 this.angle += normalizedDiff * 0.15; 
-
-                const distToPlayer = Math.hypot(primaryTarget.x - this.x, primaryTarget.y - this.y);
                 
                 if (!this.hasFiredWhileRetreating && distToPlayer < 400) {
                     const behindShot = angleToPlayer + (Math.random() < 0.5 ? Math.PI / 3 : -Math.PI / 3);
@@ -806,8 +812,26 @@ class Bot {
             if (!collidesWithWall(nx, ny, ENTITY_RADIUS)) {
                 this.x = nx;
                 this.y = ny;
-            } else if (!foundPath) {
-                this.angle += Math.PI / 3;
+            } else if (foundPath) {
+                this.x = nx;
+                this.y = ny;
+            } else{
+                let escaped = false;
+                for (let i = 0; i < 4; i++) {
+                    const escapeAngle = (i * Math.PI / 2);
+                    const ex = this.x + Math.cos(escapeAngle) * ENTITY_RADIUS * 1.5;
+                    const ey = this.y + Math.sin(escapeAngle) * ENTITY_RADIUS * 1.5;
+                    if (!collidesWithWall(ex, ey, ENTITY_RADIUS)) {
+                        this.x = ex;
+                        this.y = ey;
+                        this.angle = escapeAngle;
+                    }
+                }
+                if (!escaped){
+                    const safe = getBotSafeSpawn();
+                    this.x = safe.x;
+                    this.y = safe.y;
+                }
             }
 
             this.x = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.x));
@@ -816,6 +840,7 @@ class Bot {
             if (this.hp >= 75) {
                 this.isRetreating = false;
                 this.hasFiredWhileRetreating = false;
+                this.lastFireTime = now;
             }
         
             return;
@@ -834,6 +859,10 @@ class Bot {
             this.y = ny;
         } else {
             this.wanderAngle += Math.PI;
+        }
+
+        if (this.lastAggressorId && now - this.lastAggressorTime > 10000) {
+            this.lastAggressorId = null; 
         }
     
         this.fireAtPlayers(players);
