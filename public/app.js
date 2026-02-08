@@ -280,7 +280,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (startBtn) {
         startBtn.onclick = async () => {
             await requestFullScreen();
-            const name = nameInput.value.replace(/[^a-zA-Z0-9]/g, '');
+            let name = nameInput.value.replace(/[^a-zA-Z0-9]/g, '');
             if (!name) name = "Sniper";
             startBtn.disabled = true;
 

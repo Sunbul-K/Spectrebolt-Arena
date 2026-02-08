@@ -179,25 +179,21 @@ function containsBannedWord(name) {
 
     return false;
 }
-
 function isReservedName(name) {
     const lower = name.toLowerCase();
     return RESERVED.some(r =>
         new RegExp(`\\b${r}\\b`, 'i').test(lower)
     );
 }
-
 function isValid(name) {
     if (!/^[a-zA-Z0-9]{1,12}$/i.test(name)) return false;
     if (!/[a-z]/i.test(name)) return false;
     if (DOMAIN_REGEX.test(name) || URL_SCHEME_REGEX.test(name)) return false;
     return true;
 }
-
 function randomDigits() {
     return Math.floor(1000 + Math.random() * 9000);
 }
-
 function isNameTaken(name) {
     const normalized = name.toLowerCase();
     return Object.values(players).some(p =>
