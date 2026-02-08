@@ -42,7 +42,15 @@ body {
     overflow: hidden; 
     background: #111; 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    touch-action: none; user-select: none; -webkit-user-select: none;
+    touch-action: none; 
+    user-select: none; 
+    -webkit-user-select: none;
+}
+#howToPlayBtn{
+    margin-top:10px;
+    font-size:16px;
+    background:#444;
+    color:white
 }
 #howToPlay {
     position: fixed;
@@ -203,6 +211,12 @@ canvas { display: block; }
     text-align: center; 
     outline: none;
 }
+#winnerList{
+    font-size: 24px; 
+    text-align: center; 
+    color: white;
+}
+#Arenaclosed{color: var(--accent);}
 #nameScreen button, #gameOver button { 
     margin-top: 25px; 
     padding: 15px 50px; 
@@ -215,25 +229,49 @@ canvas { display: block; }
     transition: transform 0.1s;
 }
 #ui, #leaderboard {
-    position: fixed; top: 15px; color: white; 
-    background: var(--ui-bg); padding: 15px; border-radius: 10px; 
-    pointer-events: none; z-index: 10; font-size: 14px;
+    position: fixed; 
+    top: 15px; 
+    color: white; 
+    background: var(--ui-bg); 
+    padding: 15px; 
+    border-radius: 10px; 
+    pointer-events: none; 
+    z-index: 10; 
+    font-size: 14px;
 }
 #ui { 
     left: 15px;  min-width: 160px; 
 }
 #leaderboard {
-    position: fixed; top: 15px; right: 15px; min-width: 140px;
-    text-align: right; pointer-events: auto; background: var(--ui-bg); padding: 15px;
-    border-radius: 10px; color: white; font-size: 14px; display: flex;
-    flex-direction: column; max-height: 90vh; 
+    position: fixed; 
+    top: 15px; 
+    right: 15px; 
+    min-width: 140px;
+    text-align: right; 
+    pointer-events: auto; 
+    background: var(--ui-bg); 
+    padding: 15px;
+    border-radius: 10px; 
+    color: white; 
+    font-size: 14px; 
+    display: flex;
+    flex-direction: column; 
+    max-height: 90vh; 
+}
+#leaderB{
+    border-bottom: 1px solid #555; 
+    margin-bottom: 5px; 
+    padding-bottom: 2px;
 }
 #leaderboardTop5 {
-    flex-shrink: 0; margin-bottom: 5px;
+    flex-shrink: 0; 
+    margin-bottom: 5px;
 }
 #leaderboardScroll {
-    flex: 1 1 auto;  overflow-y: auto;
-    overscroll-behavior: contain; pointer-events: auto; 
+    flex: 1 1 auto;  
+    overflow-y: auto;
+    overscroll-behavior: contain; 
+    pointer-events: auto; 
     -webkit-overflow-scrolling: touch; 
 }
 #leaderboardScroll:focus {
@@ -243,23 +281,31 @@ canvas { display: block; }
     width: 6px;
 }
 #leaderboardScroll::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.3); border-radius: 3px;
+    background: rgba(255,255,255,0.3); 
+    border-radius: 3px;
 }
 #leaderboardScroll::-webkit-scrollbar-track {
     background: transparent;
 }
 .leaderboard-row {
-    display: flex; justify-content: space-between;
-    align-items: center; gap: 6px;
-    padding: 2px 0; font-size: 14px;
+    display: flex; 
+    justify-content: space-between;
+    align-items: center; 
+    gap: 6px;
+    padding: 2px 0; 
+    font-size: 14px;
 }
 .lb-rank {
-    width: 20px; text-align: right;
-    color: #aaa; flex-shrink: 0;
+    width: 20px; 
+    text-align: right;
+    color: #aaa; 
+    flex-shrink: 0;
 }
 .lb-name {
-    flex: 1; overflow: hidden;
-    text-overflow: ellipsis; white-space: nowrap;
+    flex: 1; 
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    white-space: nowrap;
     text-align: right;
 }
 .lb-score {
@@ -267,55 +313,112 @@ canvas { display: block; }
     text-align: right;
     font-weight: bold;
 }
-.bar-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 5px; }
-#staminaBar { width: 100%; height: 100%; background: var(--sprint); transition: width 0.1s; }
-#timer { font-size: 22px; font-weight: bold; color: var(--accent); margin-bottom: 8px; }
+.bar-bg { 
+    width: 100%; 
+    height: 8px; 
+    background: #333; 
+    border-radius: 4px; 
+    overflow: hidden; 
+    margin-top: 5px; 
+}
+#staminaBar { 
+    width: 100%; 
+    height: 100%; 
+    background: var(--sprint); 
+    transition: width 0.1s; 
+}
+#timer { 
+    font-size: 22px; 
+    font-weight: bold; 
+    color: var(--accent); 
+    margin-bottom: 8px; 
+}
 #score {
-    color: var(--sprint); margin-top: 15px;
-    font-weight: bold; text-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+    color: var(--sprint); 
+    margin-top: 15px;
+    font-weight: bold; 
+    text-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
     font-size: 20px;
 }       
 #mobileControls {
-    display: none; position: fixed; 
-    inset: 0; z-index: 500; 
+    display: none; 
+    position: fixed; 
+    inset: 0; 
+    z-index: 500; 
     pointer-events: none;
 }
 @media (pointer: coarse) { #mobileControls { display: block; } }
 .joystick-base {
-    position: absolute; bottom: calc(45px + env(safe-area-inset-bottom)); left: 60px; 
-    width: 140px; height: 140px; background: rgba(255,255,255,0.1); 
-    border-radius: 50%; pointer-events: auto;
+    position: absolute; 
+    bottom: calc(45px + env(safe-area-inset-bottom)); 
+    left: 60px; 
+    width: 140px; 
+    height: 140px; 
+    background: rgba(255,255,255,0.1); 
+    border-radius: 50%; 
+    pointer-events: auto;
 }
 .joystick-knob {
-    position: absolute; top: 45px; 
-    left: 45px; width: 50px; 
-    height: 50px; background: rgba(255,255,255,0.4); 
+    position: absolute; 
+    top: 45px; 
+    left: 45px; 
+    width: 50px; 
+    height: 50px; 
+    background: rgba(255,255,255,0.4); 
     border-radius: 50%;
 }
 #sprintBtn {
-    position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-    color: white; font-weight: bold; pointer-events: auto; bottom: 150px; right: 40px; 
-    width: 80px; height: 80px; background: rgba(0, 150, 255, 0.6); border: 3px solid rgba(255,255,255,0.2); font-size: 14px;
+    position: absolute; 
+    border-radius: 50%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: white; 
+    font-weight: bold; 
+    pointer-events: auto; 
+    bottom: 150px; 
+    right: 40px; 
+    width: 80px; height: 80px; 
+    background: rgba(0, 150, 255, 0.6); 
+    border: 3px solid rgba(255,255,255,0.2); 
+    font-size: 14px;
 }
 #shootJoystick {
-    background: rgba(255, 60, 60, 0.25); border: 3px solid rgba(255, 60, 60, 0.6);
-    bottom: 40px; right: 60px; 
+    background: rgba(255, 60, 60, 0.25); 
+    border: 3px solid rgba(255, 60, 60, 0.6);
+    bottom: 40px; 
+    right: 60px; 
     left: auto; 
 }
 #shootJoystick .joystick-knob {
     background: rgba(255, 80, 80, 0.8);
 }       
 #minimap-container {
-    position: fixed; bottom: 20px; left: 20px; 
-    width: 140px; height: 140px; background: rgba(0, 0, 0, 0.6); 
-    border: 2px solid #555; border-radius: 8px; overflow: hidden; 
+    position: fixed; 
+    bottom: 20px; 
+    left: 20px; 
+    width: 140px; 
+    height: 140px; 
+    background: rgba(0, 0, 0, 0.6); 
+    border: 2px solid #555; 
+    border-radius: 8px; 
+    overflow: hidden; 
     z-index: 5;
 }
 #minimap-canvas { display: block; }
 #mapToggle {
-    display: none; position: fixed; bottom: 170px; left: 20px; 
-    padding: 8px 12px; background: var(--ui-bg); color: white; border: 1px solid #555;
-    border-radius: 5px; font-size: 10px; pointer-events: auto; z-index: 10;
+    display: none; 
+    position: fixed; 
+    bottom: 170px; 
+    left: 20px; 
+    padding: 8px 12px; 
+    background: var(--ui-bg); 
+    color: white; 
+    border: 1px solid #555;
+    border-radius: 5px; 
+    font-size: 10px; 
+    pointer-events: auto; 
+    z-index: 10;
 }
 @media (pointer: coarse) { #mapToggle { display: block; } }
 #footer {
