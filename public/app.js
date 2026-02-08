@@ -947,7 +947,7 @@ function draw(){
         const localWaiting = !!players[myId]?.waitingForRematch;
         const shouldShowGameOverBase = (activePlayers.length === 0 && !isRematching && matchTimer > 0) || (matchTimer <= 0 && !isRematching);
 
-        const shouldShowGameOver = (matchPhase !== 'running') && (localWaiting || isViewingGameOver || shouldShowGameOverBase);
+        const shouldShowGameOver = (matchPhase !== 'running') && (localWaiting || isViewingGameOver || (shouldShowGameOverBase && !isRematching));
 
         if (shouldShowGameOver) {
             if (!isGameOverLocked) {

@@ -101,6 +101,7 @@ let lastFirePacket = {};
 let resetLock = false;
 let roundCounter = 0;
 let pbWriteTimer = null;
+let matchResetTimeout = null;
 
 const leetMap = {
     '0': ['o'], 
@@ -942,7 +943,10 @@ io.on('connection', socket => {
             if (matchTimer <= JOIN_CUTOFF_SECONDS) {
                 forcedSpectator = true;
             }
-            if (matchPhase !== 'running') waitingForRematch = true;
+            
+            if (matchPhase !== 'running') {
+                waitingForRematch = true;
+            }
 
             if (!Object.keys(players).length && Object.keys(bots).length === 0) {
                 bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
@@ -1099,37 +1103,43 @@ setInterval(() => {
     const now = Date.now();
     const delta = Math.min((now - lastTickTime) / 1000, 0.05);
     lastTickTime = now;
+
     if (matchPhase === 'running') {
         matchTimer = Math.max(0, matchTimer - delta);
     }
-    if (playerArray.length > 0) {
-        const anyAlive = playerArray.some(p => !p.isSpectating);
-        if (!anyAlive) {
-            if (matchPhase !== 'ended') {
-                matchPhase = 'ended';
-                matchTimer = 0;
-        
-                Object.values(players).forEach(p => {
-                    io.to(p.id).emit('finalScore', { score: p.score });
-                    const res = maybeSavePB(p);
-                    io.to(p.id).emit('personalBestUpdated', { personalBest: res.personalBest, isNew: res.isNew });
-                });
-        
-                try {
-                    const results = buildFinalResults();
-                    io.emit('finalResults', { results });
-                } catch (e) {
-                    console.error('Failed to build/emit finalResults:', e);
-                }
+
+    const hasActivePlayers = playerArray.some(p => !p.isSpectating);
+    const isTimeUp = matchTimer <= 0;
+    const everyoneOffline = playerArray.length === 0;
+
+    if (((!hasActivePlayers || everyoneOffline) && matchPhase === 'running') || isTimeUp) {
+        if (matchPhase !== 'ended') {
+            matchPhase = 'ended';
+            matchTimer = 0;
+
+            Object.values(players).forEach(p => {
+                io.to(p.id).emit('finalScore', { score: p.score });
+                const res = maybeSavePB(p);
+                io.to(p.id).emit('personalBestUpdated', { personalBest: res.personalBest, isNew: res.isNew });
+            });
+
+            try {
+                const results = buildFinalResults();
+                io.emit('finalResults', { results });
+            } catch (e) {
+                console.error('Failed to build/emit finalResults:', e);
             }
         }
-    } else {
-        NET_TICK = NET_TICK_ACTIVE;
-        if (matchPhase === "running") {
-            matchTimer = Math.max(0, matchTimer - delta);
+    } else if (playerArray.length === 0) {
+        if (!matchResetTimeout) {
+            matchResetTimeout = setTimeout(() => {
+                if (Object.keys(players).length === 0) {
+                    resetMatch({ preserveViewing: false });
+                }
+                matchResetTimeout = null;
+            }, 15000);
         }
     }
-
     const activePlayersArray = Object.values(players).filter(p => !p.isSpectating);
     NET_TICK = activePlayersArray.length > 0 ? NET_TICK_ACTIVE : NET_TICK_IDLE;
 
