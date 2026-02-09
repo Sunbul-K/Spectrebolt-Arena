@@ -73,10 +73,10 @@ const personalBests = new Map();
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
 
-const BANNED_WORDS = ['fuck','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
+const BANNED_WORDS = ['fuck','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
 const WORD_ONLY_BANS = ['ass'];
 
-const SAFE_SUBSTRING_BANS = ['boob','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod'];
+const SAFE_SUBSTRING_BANS = ['boob','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers'];
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
@@ -121,18 +121,27 @@ const leetMap = {
     '-': [''], 
     '_': [''], 
     '.': [''],
-    'y':['i'],
+    'y':['i'], //
     'j':['g'],
     'g':['j'],
     'ch':['sh'],
     'sh':['ch'],
     "a'a":['3'], // English for Arabic letter a'yan
-    'a':['e','q'],
-    'e':['a', 'i'],
-    'u':['o'],
-    'o':['u'],
-    'i':['e','y'],
+    'a':['e','q','u'], //
+    'e':['a', 'i'], //
+    'u':['o','a'], //
+    'o':['u','a'], //
+    'i':['e','y'], //
     'q':['a'],
+    'd':['th'],
+    'th':['ph','d','v','f'],
+    'ph':['th','ph','f'],
+    'f':['v','th','ph'],
+    'v':['f'],
+    'g':['c','k'],
+    'gg':['ck'],
+    'c':['g','k'],
+    'k':['g','c'],
 };
 
 function stripVowels(str) {
@@ -231,20 +240,20 @@ function persistPBsSyncAtomic() {
 }
 
 function persistPBsAsyncDebounced(delay = 1000) {
-  if (pbWriteTimer) clearTimeout(pbWriteTimer);
-  pbWriteTimer = setTimeout(async () => {
-    pbWriteTimer = null;
-    const obj = Object.fromEntries(personalBests);
-    const tmp = PB_FILE + '.tmp';
-    try {
-      await fs.promises.writeFile(tmp, JSON.stringify(obj), 'utf8');
-      await fs.promises.rename(tmp, PB_FILE);
-      console.log(`Saved ${personalBests.size} PB(s) to ${PB_FILE} (async)`);
-    } catch (e) {
-      console.warn('Async PB write failed, falling back to sync:', e);
-      try { persistPBsSyncAtomic(); } catch (err) { console.error('Fallback persist failed:', err); }
-    }
-  }, delay);
+    if (pbWriteTimer) clearTimeout(pbWriteTimer);
+    pbWriteTimer = setTimeout(async () => {
+        pbWriteTimer = null;
+        const obj = Object.fromEntries(personalBests);
+        const tmp = PB_FILE + '.tmp';
+        try {
+            await fs.promises.writeFile(tmp, JSON.stringify(obj), 'utf8');
+            await fs.promises.rename(tmp, PB_FILE);
+            console.log(`Saved ${personalBests.size} PB(s) to ${PB_FILE} (async)`);
+        } catch (e) {
+            console.warn('Async PB write failed, falling back to sync:', e);
+            try { persistPBsSyncAtomic(); } catch (err) { console.error('Fallback persist failed:', err); }
+        }
+    }, delay);
 }
 
 function maybeSavePB(p) {
@@ -369,8 +378,8 @@ function sanitizeInput(raw = {}) {
 
 function shouldRespawnBot(botId) {
     if (matchTimer <= 0) return false;
-    if (botId === 'bot_rob') return Math.random() < 0.75;
-    if (botId === 'bot_eliminator') return Math.random() < 0.5;
+    if (botId === 'bot_rob') return Math.random() <= 0.75;
+    if (botId === 'bot_eliminator') return Math.random() <= 0.4;
     return true;
 }
 
@@ -384,7 +393,7 @@ let specialsSpawnTimeout = null;
 function spawnSpecialBots() {
     if (specialsSpawnTimeout) return; 
     specialsSpawnTimeout = setTimeout(() => {
-        if (!specialsSpawned.rob && !bots['bot_rob'] && Math.random() < 0.75) {
+        if (!specialsSpawned.rob && !bots['bot_rob'] && Math.random() <= 0.75) {
             specialsSpawned.rob = true;
             const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED + 2, 950);
             rob.damageTakenMultiplier = 0.75;
@@ -392,7 +401,7 @@ function spawnSpecialBots() {
             io.emit('RobSpawned', {id: 'bot_rob', name: 'Rob', timestamp: Date.now()});
         }
 
-        if (!specialsSpawned.eliminator && !bots['bot_eliminator'] && Math.random() < 0.25) {
+        if (!specialsSpawned.eliminator && !bots['bot_eliminator'] && Math.random() <= 0.20) {
             specialsSpawned.eliminator = true;
             const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
             elim.isRetreating = false;
