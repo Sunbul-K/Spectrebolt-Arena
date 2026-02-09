@@ -142,6 +142,9 @@ const leetMap = {
     'gg':['ck'],
     'c':['g','k'],
     'k':['g','c'],
+    'b':['p','d'],
+    'd':['b'],
+    'p':['b','q']
 };
 
 function stripVowels(str) {
