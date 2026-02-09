@@ -386,7 +386,7 @@ function spawnSpecialBots() {
     specialsSpawnTimeout = setTimeout(() => {
         if (!specialsSpawned.rob && !bots['bot_rob'] && Math.random() < 0.75) {
             specialsSpawned.rob = true;
-            const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED, 950);
+            const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED + 2, 950);
             rob.damageTakenMultiplier = 0.75;
             bots['bot_rob'] = rob;
             io.emit('RobSpawned', {id: 'bot_rob', name: 'Rob', timestamp: Date.now()});
@@ -943,7 +943,7 @@ io.on('connection', socket => {
             if (matchTimer <= JOIN_CUTOFF_SECONDS) {
                 forcedSpectator = true;
             }
-            
+
             if (matchPhase !== 'running') {
                 waitingForRematch = true;
             }
