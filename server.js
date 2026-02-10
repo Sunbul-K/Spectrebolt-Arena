@@ -73,14 +73,14 @@ const personalBests = new Map();
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
 
-const BANNED_WORDS = ['fuck','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
+const BANNED_WORDS = ['fuck','jerk','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
 const WORD_ONLY_BANS = ['ass'];
 
-const SAFE_SUBSTRING_BANS = ['boob','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers'];
+const SAFE_SUBSTRING_BANS = ['boob','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers','rotten','corpse'];
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
-const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev'];
+const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev','me'];
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
@@ -132,8 +132,8 @@ const leetMap = {
     'u':['o','a'], //
     'o':['u','a'], //
     'i':['e','y'], //
-    'q':['a'],
-    'd':['th'],
+    'q':['a','p'],
+    'd':['th','b'],
     'th':['ph','d','v','f'],
     'ph':['th','ph','f'],
     'f':['v','th','ph'],
@@ -143,8 +143,10 @@ const leetMap = {
     'c':['g','k'],
     'k':['g','c'],
     'b':['p','d'],
-    'd':['b'],
-    'p':['b','q']
+    'p':['b','q'],
+    'cc':['kk','gg','ck'],
+    'kk':['cc','gg','ck'],
+    
 };
 
 function stripVowels(str) {
