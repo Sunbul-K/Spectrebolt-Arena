@@ -153,6 +153,9 @@ const leetMap = {
 function stripVowels(str) {
     return str.replace(/[aeiouy]/g, '');
 }
+function reverseString(str) {
+    return str.split('').reverse().join('');
+}
 function containsBannedWord(name) {
     const lower = name.toLowerCase();
     let variants = new Set([lower]);
@@ -175,6 +178,10 @@ function containsBannedWord(name) {
         variants.add(v.replace(/(.)\1+/g, '$1'));
     }
 
+    for (const v of Array.from(variants)) {
+        variants.add(reverseString(v));
+    }
+    
     for (const v of variants) {
         for (const w of WORD_ONLY_BANS) {
             const re = new RegExp(`\\b${w}\\b`, 'i');
