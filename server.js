@@ -73,10 +73,10 @@ const personalBests = new Map();
 // - didd: diddy, diddle, diddler, etc.
 // - Names of religions & holy books: prevent religiophobia of any kind
 
-const BANNED_WORDS = ['fuck','kids','atfal','tife','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
+const BANNED_WORDS = ['fuck','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
 const WORD_ONLY_BANS = ['ass'];
 
-const SAFE_SUBSTRING_BANS = ['boob','kalb','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers','muslim','islam','kys'];
+const SAFE_SUBSTRING_BANS = ['boob','kalb','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers','muslim','islam','kys','like','teez','groom','khara','zib','nazi','didd','ejac','coke','dealer','meat','babe','maniac','manyook','kus'];
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
@@ -121,6 +121,7 @@ const leetMap = {
     '-': [''], 
     '_': [''], 
     '.': [''],
+    ' ':[''], // ignore spaces
     'y':['i'], //
     'j':['g'],
     'g':['j'],
@@ -132,12 +133,6 @@ const leetMap = {
     'u':['o','a'], //
     'o':['u','a'], //
     'i':['e','y'], //
-    'q':['a','p'],
-    'd':['th','b'],
-    'th':['ph','d','v','f'],
-    'ph':['th','ph','f'],
-    'f':['v','th','ph'],
-    'v':['f'],
     'g':['c','k'],
     'gg':['ck','kk','cc'],
     'c':['g','k'],
@@ -147,7 +142,6 @@ const leetMap = {
     'cc':['kk','gg','ck'],
     'kk':['cc','gg','ck'],
     'ck':['gg'],
-    'kc':['ck']
 };
 
 function stripVowels(str) {
@@ -163,7 +157,7 @@ function containsBannedWord(name) {
     for (const [key, reps] of Object.entries(leetMap)) {
         const next = new Set();
         for (const v of variants) {
-          next.add(v);
+            next.add(v);
             if (v.includes(key)) {
                 for (const rep of reps) {
                     next.add(v.split(key).join(rep));
@@ -171,31 +165,25 @@ function containsBannedWord(name) {
             }
         }
         variants = next;
-        if (variants.size > 500) break;
+        if (variants.size > 100) break;
     }
 
     for (const v of Array.from(variants)) {
-        variants.add(v.replace(/(.)\1+/g, '$1'));
+        variants.add(v.replace(/(.)\1+/g, '$1')); 
+        variants.add(reverseString(v)); 
     }
 
-    for (const v of Array.from(variants)) {
-        variants.add(reverseString(v));
-    }
-    
     for (const v of variants) {
         for (const w of WORD_ONLY_BANS) {
             const re = new RegExp(`\\b${w}\\b`, 'i');
             if (re.test(v)) return true;
         }
+    }
 
+    for (const v of variants) {
         for (const w of SUBSTRING_BANS) {
-            const sv = stripVowels(v);
-            const sw = stripVowels(w);
-            if (SAFE_SUBSTRING_BANS.includes(w)) {
-                if (v.includes(w) || (sv.length >= 3 && sw.length >= 3 && sv.includes(sw))) return true;
-            } else {
-                if (v.includes(w)) return true;
-            }
+            const strippedWord = SAFE_SUBSTRING_BANS.includes(w) ? w : stripVowels(w);
+            if (v.toLowerCase().includes(strippedWord)) return true;
         }
     }
 
@@ -208,7 +196,7 @@ function isReservedName(name) {
     );
 }
 function isValid(name) {
-    if (!/^[a-zA-Z0-9]{1,12}$/i.test(name)) return false;
+    if (!/^[a-zA-Z0-9]{1,15}$/i.test(name)) return false;
     if (!/[a-z]/i.test(name)) return false;
     if (DOMAIN_REGEX.test(name) || URL_SCHEME_REGEX.test(name)) return false;
     return true;
@@ -900,7 +888,7 @@ io.on('connection', socket => {
         let rawName = (data.name || "").trim();
         rawName = rawName.replace(/[\x00-\x1F\x7F]/g, '').slice(0, 32);
         let wasRenamedForFilter = false;
-        let name = rawName.slice(0, 12);
+        let name = rawName.slice(0,15);
         let autogenerated = false;
         const now = Date.now();
         const lastJoin = JOIN_LIMITS.get(socket.id) || 0;

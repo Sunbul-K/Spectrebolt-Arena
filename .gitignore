@@ -1,3 +1,5 @@
 node_modules
 .env
 personal_bests.json
+false-positives-test.js
+*.log
