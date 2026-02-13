@@ -1376,6 +1376,9 @@ setInterval(() => {
                             if (shouldRespawnBot(target.id)) {
                                 const respawn = getBotSafeSpawn();
                                 Object.assign(target, {hp: 100,x: respawn.x,y: respawn.y,spawnTime: Date.now(),justDied:false});
+                                if (target.id === 'bot_eliminator') {
+                                    io.emit('EliminatorRespawned', {id: 'bot_eliminator', name: 'Eliminator', timestamp: Date.now()});
+                                }
                             } else {
                                 target.retired=true;
                                 if (!target.retireAnnounced) {

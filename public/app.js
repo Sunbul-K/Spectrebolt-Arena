@@ -592,6 +592,16 @@ socket.on('EliminatorSpawned', () => {
     box.appendChild(msg);
     setTimeout(() => msg.remove(), 4000);
 });
+socket.on('EliminatorRespawned', () => {
+    const box = document.getElementById('eliminatorNotice');
+    const msg = document.createElement('div');
+
+    msg.className = 'elim-msg';
+    msg.textContent = 'THE ELIMINATOR HAS RETURNED';
+
+    box.appendChild(msg);
+    setTimeout(() => msg.remove(), 4000);
+});
 socket.on('RobRetired', () => {
     const box = document.getElementById('robNotice');
     const msg = document.createElement('div');
