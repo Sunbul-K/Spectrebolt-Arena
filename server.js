@@ -67,17 +67,16 @@ const JOIN_LIMITS = new Map();
 const personalBests = new Map();
 
 // Note: Some bans are intentionally broad to prevent common abuse patterns:
-// - mom/dad/mother/father/sister/brother/baby: harassment & sexual taunts
+// - mom/dad/mother/father/sister/brother/baby in Arabic & English: harassment & sexual taunts
 // - twin/tower: Twin Towers references
-// - hog: hogtie abuse
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
-// - names of religions & holy books: prevent religiophobia
+// - Names of religions & holy books: prevent religiophobia of any kind
 
-const BANNED_WORDS = ['fuck','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
+const BANNED_WORDS = ['fuck','kids','atfal','tife','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
 const WORD_ONLY_BANS = ['ass'];
 
-const SAFE_SUBSTRING_BANS = ['boob','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers','rotten','corpse'];
+const SAFE_SUBSTRING_BANS = ['boob','kalb','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers','muslim','islam','kys'];
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
@@ -140,14 +139,15 @@ const leetMap = {
     'f':['v','th','ph'],
     'v':['f'],
     'g':['c','k'],
-    'gg':['ck'],
+    'gg':['ck','kk','cc'],
     'c':['g','k'],
     'k':['g','c'],
     'b':['p','d'],
     'p':['b','q'],
     'cc':['kk','gg','ck'],
     'kk':['cc','gg','ck'],
-    
+    'ck':['gg'],
+    'kc':['ck']
 };
 
 function stripVowels(str) {
