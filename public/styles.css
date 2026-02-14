@@ -66,7 +66,7 @@ body {
 }
 .howto-box h2 {
     margin-top: 0;
-    color: var(--accent);
+    color: #0f4;
 }
 .howto-box ul {
     text-align: left;
@@ -86,7 +86,7 @@ body {
     font-size: 14px;
     border: none;
     border-radius: 6px;
-    background: var(--accent);
+    background: #0f4;
     font-weight: bold;
     cursor: pointer;
 }
@@ -94,7 +94,7 @@ body {
     position: absolute;
     top: 15px;
     left: 15px;
-    color: var(--accent);
+    color: #0f4;
     font-weight: bold;
     font-size: 16px;
     text-align: right;
@@ -204,6 +204,12 @@ canvas { display: block; }
     width: 280px; 
     text-align: center; 
     outline: none;
+}
+#startBtn{
+    margin-top:10px;
+    font-size:16px;
+    background:#0f4;
+    color: black;
 }
 #winnerList{
     font-size: 24px; 
