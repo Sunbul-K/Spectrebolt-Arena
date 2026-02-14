@@ -72,7 +72,7 @@ const personalBests = new Map();
 // - nigg: we know why
 // - Names of religions & holy books: prevent religiophobia of any kind
 
-const BANNED_WORDS = ['fuck','mother','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss','titt'];
+const BANNED_WORDS = ['fuck','mother','beid','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss','titt'];
 const WORD_ONLY_BANS = ['ass','tit','cum'];
 
 const SAFE_SUBSTRING_BANS = ['boob','titt','kalb','dork','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','bad','bush','boxers','muslim','islam','kys','like','teez','groom','khara','zib','nazi','diddy','ejac','coke','dealer','meat','babe','maniac','manyook','kus','kids','piss'];
@@ -145,6 +145,11 @@ const leetMap = {
     'sk':['x'],
     'gs':['x'],
     'x':['ks','gs'],
+    'ay':['ai','ei'],
+    'ai':['ay','ei'],
+    'ei':['ay','ai'],
+    'ie':['ei','ai'],
+
 };
 
 function stripVowels(str) {
@@ -199,7 +204,7 @@ function isReservedName(name) {
     );
 }
 function isValid(name) {
-    if (!/^[a-zA-Z0-9]{1,15}$/i.test(name)) return false;
+    if (!/^[a-zA-Z0-9]{1,13}$/i.test(name)) return false;
     if (!/[a-z]/i.test(name)) return false;
     if (DOMAIN_REGEX.test(name) || URL_SCHEME_REGEX.test(name)) return false;
     return true;
