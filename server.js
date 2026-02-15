@@ -90,10 +90,10 @@ const leetmap = {
     '2': ['z','s'], 
     '3': ['e'], 
     '4': ['a'], 
-    '5': ['s','kh'], // 5 is like kh in arabic
+    '5': ['s','kh'], // English for Arabic letter kha'
     '6': ['g'], 
-    '7': ['t','h'], // 7 is like h in arabic
-    '8': ['b'], 
+    '7': ['t','h'], // English for Arabic letter ha'
+    '8': ['b','gh'], // 8 is sometimes used for ghain in Arabic 
     '9': ['g'], 
     '@': ['a'], 
     '$': ['s'], 
@@ -103,7 +103,7 @@ const leetmap = {
     '_': [''], 
     '.': [''],
     ' ':[''], // ignore spaces
-    "a'a":['3'], // English for Arabic letter a'yan
+    "a'a":['3'], // English for Arabic letter a'ayan
     "3'":['gh'] // English for Arabic letter ghain
 }
 

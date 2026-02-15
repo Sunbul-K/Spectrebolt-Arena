@@ -1,142 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spectrebolt Arena</title>
-    <meta name="description" content="Spectrebolt Arena, a fast-paced,top-down 2d multiplayer shooter game. Eliminate players and bots to climb the leaderboard. Free to play online!">
-    <meta name="keywords" content="spectrebolt, arena, spectrebolt arena, spectrebolt arena multiplayer, 2d multiplayer shooter game, 2d online shooter game, top-down shooter">
-    <meta name="author" content="Saif Kayyali">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        <title>Spectrebolt Arena</title>
+        <meta name="description" content="Spectrebolt Arena: a fast-paced, top-down 2d multiplayer shooter game. Eliminate players and bots to climb the leaderboard. Free to play online!">
+        <meta name="keywords" content="spectrebolt, arena, spectrebolt arena, spectrebolt arena multiplayer, 2d multiplayer shooter game, 2d online shooter game, top-down shooter">
+        <meta name="author" content="Saif Kayyali">
 
-    <link rel="icon" type="image/png" href="/icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Spectrebolt">
-    <link rel="apple-touch-icon" href="/iconx192.png">
-    <link rel="preload" href="/ios-share.png" as="image">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="canonical" href="https://spectrebolt-arena-9xk4.onrender.com/" />
-    <meta property="og:title" content="Spectrebolt Arena" />
-    <meta property="og:description" content="Spectrebolt Arena, a fast-paced,top-down 2d multiplayer shooter game. Eliminate players and bots to climb the leaderboard. Free to play online!" />
-    <meta property="og:image" content="https://spectrebolt-arena-9xk4.onrender.com/icon.png" />
-    <meta property="og:url" content="https://spectrebolt-arena-9xk4.onrender.com/" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Spectrebolt Arena" />
-    <meta name="twitter:description" content="Spectrebolt Arena, a fast-paced,top-down 2d multiplayer shooter game. Eliminate players and bots to climb the leaderboard. Free to play online!" />
-    <meta name="twitter:image" content="https://spectrebolt-arena-9xk4.onrender.com/icon.png" />
-    <meta name="google-site-verification" content="tRgtVEqqPyRRnIbFEz3vZ5dbKVRK2Pi-r9GgIe-56Dg" />
-    <meta name="theme-color" content="#0f4">
+        <link rel="icon" type="image/png" href="/icon.png">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Spectrebolt">
+        <link rel="apple-touch-icon" href="/iconx192.png">
+        <link rel="preload" href="/ios-share.png" as="image">
+        <link rel="manifest" href="/manifest.json">
+        <link rel="canonical" href="https://spectrebolt-arena-9xk4.onrender.com/" />
+        <meta property="og:title" content="Spectrebolt Arena" />
+        <meta property="og:description" content="Spectrebolt Arena: a fast-paced, top-down 2d multiplayer shooter game. Eliminate players and bots to climb the leaderboard. Free to play online!" />
+        <meta property="og:image" content="https://spectrebolt-arena-9xk4.onrender.com/icon.png" />
+        <meta property="og:url" content="https://spectrebolt-arena-9xk4.onrender.com/" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Spectrebolt Arena" />
+        <meta name="twitter:description" content="Spectrebolt Arena: a fast-paced, top-down 2d multiplayer shooter game. Eliminate players and bots to climb the leaderboard. Free to play online!" />
+        <meta name="twitter:image" content="https://spectrebolt-arena-9xk4.onrender.com/icon.png" />
+        <meta name="google-site-verification" content="tRgtVEqqPyRRnIbFEz3vZ5dbKVRK2Pi-r9GgIe-56Dg" />
+        <meta name="theme-color" content="#0f4">
 
-    <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-
-    <div id="homepage-warning">
-        <h2>ADD TO HOME PAGE FOR BETTER USER EXPERIENCE</h2>
-        <p>For iOS, tap the <img src="ios-share.png" width="15" style="vertical-align: middle;"> button and select <b>"Add to Home Screen"</b></p>
-        <p>For Android, tap the <img src="android-add-homepage.png" width="15" style="vertical-align: middle;"> button and scroll and select <b>"Add to Home Screen"</b></p>
-    </div>
-
-    <div id="portrait-warning">
-        <h2>PLEASE ROTATE TO LANDSCAPE</h2>
-        <p>This game is best played in landscape mode.</p>
-    </div>
-
-    <div id="nameScreen">
-        <h1>Spectrebolt Arena</h1>
-        
-        <div id="personalBestDisplay">
-            PERSONAL BEST: 0
+        <link rel="stylesheet" href="/styles.css">
+    </head>
+    <body>
+        <div id="homepage-warning">
+            <h2>ADD TO HOME PAGE FOR BETTER USER EXPERIENCE</h2>
+            <p>For iOS, tap the <img src="ios-share.png" width="15" style="vertical-align: middle;"> button and scroll till you find <b>"Add to Home Screen"</b> and then click it.</p>
+            <p>For Android, tap the <img src="android-add-homepage.png" width="15" style="vertical-align: middle;"> button (Can be either horizontal or vertical) and scroll till you find <b>"Add to Home Screen"</b> and then click it.</p>
         </div>
 
-        <input type="text" id="nameInput" placeholder="NICKNAME" maxlength="13">
-        <button id="startBtn">JOIN ARENA</button>
-        <button style="margin-top:10px;font-size:16px;background:#444;color:white" onclick="openHowTo()">HOW TO PLAY</button>
-    </div>
+        <div id="portrait-warning">
+            <h2>PLEASE ROTATE TO LANDSCAPE</h2>
+            <p>This game is best played in landscape mode.</p>
+        </div>
 
-    <div id="howToPlay" style="display:none;">
-        <div class="howto-box">
-            <h2 id="howto-title">HOW TO PLAY (MOBILE)</h2>
-
-            <div id="howto-mobile">
-                <ul>
-                    <li><b>Move:</b> Left joystick</li>
-                    <li><b>Aim & Shoot:</b> Right (red) joystick</li>
-                    <li><b>Run:</b> RUN button (uses stamina)</li>
-                </ul>
+        <div id="nameScreen">
+            <h1>Spectrebolt Arena</h1>
+            
+            <div id="personalBestDisplay">
+                PERSONAL BEST: 0
             </div>
 
-            <div id="howto-desktop" style="display:none;">
-                <ul>
-                    <li><b>Move:</b> WASD / Arrow Keys</li>
-                    <li><b>Aim:</b> Mouse Movement</li>
-                    <li><b>Shoot:</b> Hold SPACE</li>
-                    <li><b>Run:</b> Hold SHIFT</li>
-                </ul>
+            <input type="text" id="nameInput" placeholder="NICKNAME" maxlength="13">
+            <button id="startBtn">JOIN ARENA</button>
+            <button style="margin-top:10px;font-size:16px;background:#444;color:white" onclick="openHowTo()">HOW TO PLAY</button>
+        </div>
+
+        <div id="howToPlay" style="display:none;">
+            <div class="howto-box">
+                <h2 id="howto-title">HOW TO PLAY (MOBILE)</h2>
+
+                <div id="howto-mobile">
+                    <ul>
+                        <li><b>Move:</b> Left joystick</li>
+                        <li><b>Aim & Shoot:</b> Right (red) joystick</li>
+                        <li><b>Run:</b> RUN button (uses stamina)</li>
+                    </ul>
+                </div>
+
+                <div id="howto-desktop" style="display:none;">
+                    <ul>
+                        <li><b>Move:</b> WASD / Arrow Keys</li>
+                        <li><b>Aim:</b> Mouse Movement</li>
+                        <li><b>Shoot:</b> Hold SPACE</li>
+                        <li><b>Run:</b> Hold SHIFT</li>
+                    </ul>
+                </div>
+
+                <div class="howto-buttons">
+                    <button id="howto-switch">DESKTOP</button>
+                    <button onclick="closeHowTo()">CLOSE</button>
+                </div>
             </div>
+        </div>
 
-            <div class="howto-buttons">
-                <button id="howto-switch">DESKTOP</button>
-                <button onclick="closeHowTo()">CLOSE</button>
+        <div id="lateSpectatorBanner">
+            You joined during the final 5 minutes.<br>
+            <b>You are spectating until the match ends.</b>
+        </div>
+
+        <div id="killFeed"></div>
+
+        <div id="gameOver" style="display:none;">
+            <h1 style="color: var(--accent);">ARENA CLOSED</h1>
+            <div id="winnerList" style="font-size: 24px; text-align: center; color: white;"></div>
+            <div id="score"></div>
+            <button id="rematchBtn">REMATCH</button>
+        </div>
+
+        <div id="robNotice"></div>
+        <div id="eliminatorNotice"></div>
+
+        <button id="mapToggle">HIDE MAP</button>
+        <div id="minimap-container">
+            <canvas id="minimap-canvas" width="140" height="140"></canvas>
+        </div>
+
+        <div id="ui">
+            <div id="timer">TIME: 15:00</div>
+            <div>HP: <span id="hpText">100</span> | Lives: <span id="livesText">3</span></div>
+            <div class="bar-bg"><div id="staminaBar"></div></div>
+        </div>
+
+        <div id="leaderboard">
+            <div style="border-bottom: 1px solid #555; margin-bottom: 5px; padding-bottom: 2px;"><b>LEADERBOARD</b></div>
+            <div id="leaderboardScroll" tabindex="-1"></div>
+        </div>
+
+        <div id="mobileControls">
+            <div id="moveJoystick" class="joystick-base">
+                <div id="moveKnob" class="joystick-knob"></div>
             </div>
+            <div id="shootJoystick" class="joystick-base">
+                <div id="shootKnob" class="joystick-knob"></div>
+            </div>
+            <div id="sprintBtn">RUN</div>
         </div>
-    </div>
 
-    <div id="lateSpectatorBanner">
-        You joined during the final 5 minutes.<br>
-        <b>You are spectating until the match ends.</b>
-    </div>
+        <canvas id="game"></canvas>
 
-    <div id="killFeed"></div>
-
-    <div id="gameOver" style="display:none;">
-        <h1 style="color: var(--accent);">ARENA CLOSED</h1>
-        <div id="winnerList" style="font-size: 24px; text-align: center; color: white;"></div>
-        <div id="score"></div>
-        <button id="rematchBtn">REMATCH</button>
-    </div>
-
-    <div id="robNotice"></div>
-    <div id="eliminatorNotice"></div>
-
-    <button id="mapToggle">HIDE MAP</button>
-    <div id="minimap-container">
-        <canvas id="minimap-canvas" width="140" height="140"></canvas>
-    </div>
-
-    <div id="ui">
-        <div id="timer">TIME: 15:00</div>
-        <div>HP: <span id="hpText">100</span> | Lives: <span id="livesText">3</span></div>
-        <div class="bar-bg"><div id="staminaBar"></div></div>
-    </div>
-
-    <div id="leaderboard">
-        <div style="border-bottom: 1px solid #555; margin-bottom: 5px; padding-bottom: 2px;"><b>LEADERBOARD</b></div>
-        <div id="leaderboardScroll" tabindex="-1"></div>
-    </div>
-
-    <div id="mobileControls">
-        <div id="moveJoystick" class="joystick-base">
-            <div id="moveKnob" class="joystick-knob"></div>
+        <div id="footer">
+            Found a bug or issue?
+            <a href="https://github.com/Sunbul-K/Spectrebolt-Arena/discussions" target="_blank" rel="noopener">
+                Spectrebolt Arena • Report bugs on GitHub
+            </a>
         </div>
-        <div id="shootJoystick" class="joystick-base">
-            <div id="shootKnob" class="joystick-knob"></div>
-        </div>
-        <div id="sprintBtn">RUN</div>
-    </div>
 
-    <canvas id="game"></canvas>
-
-    <div id="footer">
-        Found a bug or issue?
-        <a href="https://github.com/Sunbul-K/Spectrebolt-Arena/discussions" target="_blank" rel="noopener">
-            Spectrebolt Arena • Report bugs on GitHub
-        </a>
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js"></script>
-</body>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/app.js"></script>
+    </body>
 </html>

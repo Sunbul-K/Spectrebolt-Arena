@@ -1,5 +1,12 @@
+# Ignore node_modules because package-lock.json is already tracked
 node_modules
+
+# Environment Variables
 .env
+
+# Local PBs for Testing
 personal_bests.json
+
+# To find what caused false positives within name filter
 false-positives-test.js
 *.log

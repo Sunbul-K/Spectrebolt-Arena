@@ -11,6 +11,7 @@ A real-time 2D top-down multiplayer shooter game built using **Node.js**, **Sock
     * Circle-based collision detection using the Distance Formula.
 * **Smart AI Bots:** Integrated server-side bots with autonomous targeting and movement logic.
 * **Camera System:** Dynamic world-to-screen transformation allowing the camera to follow the local player.
+* **Petty Game Design:** Built to punish players attempting to bypass the name filter by renaming them and having them lose 5 more hp than normal players for the first round they're playing
 
 ---
 
