@@ -84,6 +84,29 @@ const RESERVED = ['bobby','rob','eliminator','spectrebolt','admin','server','sai
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
 
+const leetmap = {
+    '0': ['o'], 
+    '1': ['i', 'l'], 
+    '2': ['z','s'], 
+    '3': ['e'], 
+    '4': ['a'], 
+    '5': ['s','kh'], // 5 is like kh in arabic
+    '6': ['g'], 
+    '7': ['t','h'], // 7 is like h in arabic
+    '8': ['b'], 
+    '9': ['g'], 
+    '@': ['a'], 
+    '$': ['s'], 
+    '!': ['i','l'], 
+    '+': ['t'],
+    '-': [''], 
+    '_': [''], 
+    '.': [''],
+    ' ':[''], // ignore spaces
+    "a'a":['3'], // English for Arabic letter a'yan
+    "3'":['gh'] // English for Arabic letter ghain
+}
+
 let lastNetSend = 0;
 let lastTickTime = Date.now();
 let players = {};
@@ -111,6 +134,20 @@ function reverseString(str) {
 function containsBannedWord(name) {
     const lower = name.toLowerCase();
     let variants = new Set([lower]);
+
+    for (const [key, reps] of Object.entries(leetmap)) {
+        const next = new Set();
+        for (const v of variants) {
+            next.add(v);
+            if (v.includes(key)) {
+                for (const rep of reps) {
+                    next.add(v.split(key).join(rep));
+                }
+            }
+        }
+        variants = next;
+        if (variants.size > 100) break;
+    }
 
     const extraVariants = new Set();
     for (const v of variants) {
