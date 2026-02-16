@@ -767,7 +767,7 @@ function drawMinimap() {
     walls.forEach(w => miniCtx.fillRect(w.x * scale, w.y * scale, w.w * scale, w.h * scale));
     Object.values(bots).forEach(b => {
         if (b.retired) return;
-        miniCtx.fillStyle = "purple"; miniCtx.beginPath();
+        miniCtx.fillStyle = b.color; miniCtx.beginPath();
         miniCtx.arc(b.x * scale, b.y * scale, 3, 0, Math.PI * 2); miniCtx.fill();
     });
     Object.values(players).forEach(p => {
@@ -780,7 +780,7 @@ function drawMinimap() {
     const me = players[myId];
     if (me) {
         miniCtx.fillStyle = "#0f4"; miniCtx.beginPath();
-        miniCtx.arc(me.x * scale, me.y * scale, 4, 0, Math.PI * 2); miniCtx.fill();
+        miniCtx.arc(me.x * scale, me.y * scale, 3, 0, Math.PI * 2); miniCtx.fill();
     }
 }
 
