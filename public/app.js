@@ -719,29 +719,40 @@ setInterval(() => {
 
 }, 1000/60);
 
-function drawEntity(p, color, label, isMe) {
-    ctx.save();
-    if (p.isSpectating) ctx.globalAlpha = 0.5;
-    ctx.translate(p.x, p.y);
-    if (p.spawnProtected && !p.isSpectating) {
-        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2);
-        ctx.strokeStyle = "#0cf"; ctx.lineWidth = 3; ctx.setLineDash([5, 5]); ctx.stroke();
-        ctx.setLineDash([]);
+function renderWinners() {
+    const winnerBox = document.getElementById('winnerList');
+    if (!winnerBox) return;
+
+    if (isConnectionStalled) {
+        winnerBox.innerHTML = `<div style="color: #f54242;">CONNECTION STALLED — A NEW MATCH STARTED</div>`;
+        return;
     }
-    if (!p.isSpectating) {
-        ctx.fillStyle = "#333"; ctx.fillRect(-20, -45, 40, 6);
-        ctx.fillStyle = p.hp > 30 ? "#0f4" : "#f22"; ctx.fillRect(-20, -45, (p.hp/100) * 40, 6);
+
+    let all = (Array.isArray(finalResults) && finalResults.length) ? finalResults.slice() : [];
+    
+    if (!all.length) {
+        all = Object.values(leaderboardEntities || {});
     }
-    ctx.save(); ctx.rotate(p.angle);
-    ctx.fillStyle = color; ctx.strokeStyle = "#000"; ctx.lineWidth = 3;
-    ctx.fillRect(0, -6, 32, 12); ctx.strokeRect(0, -6, 32, 12);
-    ctx.restore();
-    ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2);
-    ctx.fillStyle = color; ctx.fill();
-    ctx.strokeStyle = isMe ? "#fff" : "#000"; ctx.lineWidth = isMe ? 4 : 3; ctx.stroke();
-    ctx.fillStyle = "white"; ctx.globalAlpha = 1; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
-    ctx.fillText((p.isSpectating ? "[GHOST] " : "") + label, 0, -55);
-    ctx.restore();
+
+    if (!all.length) {
+        winnerBox.innerHTML = `<div>No winners this round.</div>`;
+        return;
+    }
+
+    const sorted = all.slice().sort((a, b) => b.score - a.score);
+    const topScore = sorted[0].score;
+    const winners = sorted.filter(p => p.score === topScore);
+
+    winnerBox.innerHTML = `
+        <div style="margin-bottom: 10px;">
+            <b>${winners.length > 1 ? 'WINNERS' : 'WINNER'}</b>
+        </div>
+        ${winners.map(w => `
+            <div>
+                ${w.name}${w.isBot ? ' 🤖' : ''} — ${w.score}
+            </div>
+        `).join('')}
+    `;
 }
 
 const miniCanvas = document.getElementById('minimap-canvas');
@@ -779,47 +790,34 @@ function drawMinimap() {
     });
     const me = players[myId];
     if (me) {
-        miniCtx.fillStyle = "#0f4"; miniCtx.beginPath();
+        miniCtx.fillStyle = "white"; miniCtx.beginPath();
         miniCtx.arc(me.x * scale, me.y * scale, 3, 0, Math.PI * 2); miniCtx.fill();
     }
 }
-
-function renderWinners() {
-    const winnerBox = document.getElementById('winnerList');
-    if (!winnerBox) return;
-
-    if (isConnectionStalled) {
-        winnerBox.innerHTML = `<div style="color: #f54242;">CONNECTION STALLED — A NEW MATCH STARTED</div>`;
-        return;
+function drawEntity(p, color, label, isMe) {
+    ctx.save();
+    if (p.isSpectating) ctx.globalAlpha = 0.5;
+    ctx.translate(p.x, p.y);
+    if (p.spawnProtected && !p.isSpectating) {
+        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2);
+        ctx.strokeStyle = "#0cf"; ctx.lineWidth = 3; ctx.setLineDash([5, 5]); ctx.stroke();
+        ctx.setLineDash([]);
     }
-
-    let all = (Array.isArray(finalResults) && finalResults.length) ? finalResults.slice() : [];
-    
-    if (!all.length) {
-        all = Object.values(leaderboardEntities || {});
+    if (!p.isSpectating) {
+        ctx.fillStyle = "#333"; ctx.fillRect(-20, -45, 40, 6);
+        ctx.fillStyle = p.hp > 30 ? "#0f4" : "#f22"; ctx.fillRect(-20, -45, (p.hp/100) * 40, 6);
     }
-
-    if (!all.length) {
-        winnerBox.innerHTML = `<div>No winners this round.</div>`;
-        return;
-    }
-
-    const sorted = all.slice().sort((a, b) => b.score - a.score);
-    const topScore = sorted[0].score;
-    const winners = sorted.filter(p => p.score === topScore);
-
-    winnerBox.innerHTML = `
-        <div style="margin-bottom: 10px;">
-            <b>${winners.length > 1 ? 'WINNERS' : 'WINNER'}</b>
-        </div>
-        ${winners.map(w => `
-            <div>
-                ${w.name}${w.isBot ? ' 🤖' : ''} — ${w.score}
-            </div>
-        `).join('')}
-    `;
+    ctx.save(); ctx.rotate(p.angle);
+    ctx.fillStyle = color; ctx.strokeStyle = "#000"; ctx.lineWidth = 3;
+    ctx.fillRect(0, -6, 32, 12); ctx.strokeRect(0, -6, 32, 12);
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.strokeStyle = isMe ? "#fff" : "#000"; ctx.lineWidth = isMe ? 4 : 3; ctx.stroke();
+    ctx.fillStyle = "white"; ctx.globalAlpha = 1; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
+    ctx.fillText((p.isSpectating ? "[GHOST] " : "") + label, 0, -55);
+    ctx.restore();
 }
-
 function drawCenteredText(ctx, text, yOffset = 0, lineHeight = 26) {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -835,9 +833,8 @@ function drawCenteredText(ctx, text, yOffset = 0, lineHeight = 26) {
 
     ctx.restore();
 }
-
 function draw(){
-    try{
+    try {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         updateUXWarnings();
         if (isJoining || !players[myId]) {
@@ -1026,8 +1023,8 @@ function draw(){
         }
 
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }catch(e){
-        console.error('Render error (recovering):', e);
+    } catch(e) {
+        console.error("Render error (recovering insha'Allah):", e);
     }
 }
 

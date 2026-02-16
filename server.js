@@ -88,7 +88,7 @@ const leetmap = {
     '0': ['o'], 
     '1': ['i', 'l'], 
     '2': ['z','s'], 
-    '3': ['e'], 
+    '3': ['e','gh'],
     '4': ['a'], 
     '5': ['s','kh'], // English for Arabic letter kha'
     '6': ['g'], 
@@ -105,7 +105,7 @@ const leetmap = {
     ' ':[''], // ignore spaces
     "a'a":['3'], // English for Arabic letter a'ayan
     "3'":['gh'] // English for Arabic letter ghain
-}
+};
 
 let lastNetSend = 0;
 let lastTickTime = Date.now();
@@ -210,7 +210,6 @@ function loadPersonalBestsFromDisk() {
     console.warn('Failed to load personal bests from disk:', e);
   }
 }
-
 function persistPBsSyncAtomic() {
   const obj = Object.fromEntries(personalBests);
   try {
@@ -222,7 +221,6 @@ function persistPBsSyncAtomic() {
     console.warn('Failed to write PB file to local disk:', e);
   }
 }
-
 function persistPBsAsyncDebounced(delay = 1000) {
     if (pbWriteTimer) clearTimeout(pbWriteTimer);
     pbWriteTimer = setTimeout(async () => {
@@ -239,7 +237,6 @@ function persistPBsAsyncDebounced(delay = 1000) {
         }
     }, delay);
 }
-
 function maybeSavePB(p) {
   if (!p || !p.uuid) {
     console.warn('maybeSavePB called with missing player or uuid', !!p, p?.id);
@@ -255,13 +252,11 @@ function maybeSavePB(p) {
   }
   return { personalBest: prev, isNew: false };
 }
-
 loadPersonalBestsFromDisk();
 
 function rectsIntersect(r1, r2, padding = 0) {
     return (r1.x < r2.x + r2.w + padding && r1.x + r1.w + padding > r2.x && r1.y < r2.y + r2.h + padding && r1.y + r1.h + padding > r2.y);
 }
-
 function getBotSafeSpawn() {
     let x, y, attempts = 0;
     const MIN_DIST = 300;
@@ -400,7 +395,6 @@ function spawnSpecialBots() {
 function isLeaderboardEligible(p) {
     return !p.waitingForRematch && !p.viewingGameOver;
 }
-
 function handleSuccessfulJoin(socket, name,forcedSpectator = false, waitingForRematch=false, wasRenamedForFilter =false) {
     const pos = getSafeSpawn();
     players[socket.id] = {
@@ -645,7 +639,8 @@ class Bot {
         );
 
         const dist = Math.hypot(nearest.x - this.x, nearest.y - this.y);
-        if (dist > 800) return;
+        if (dist > 800 && this.id !== 'bot_eliminator') return;
+        if (dist > 1200) return;
         this.angle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
 
         const fireCooldown =this.id === 'bot_bobby' ? 1500 :this.id === 'bot_rob' ? 700 : 400; 
