@@ -400,7 +400,7 @@ socket.on('connectionStalled', () => {
   if (winnerBox) winnerBox.innerText = "CONNECTION STALLED — A NEW MATCH STARTED";
 });
 socket.on('forceReload', () => {
-    try { location.reload(); } catch (e) {}
+    setTimeout(() => location.reload(), 100);
 });
 socket.on('rematchDenied', (msg) => {
     alert(msg || "Cannot rematch yet or game is already resetting. Please wait a bit then try again");
@@ -657,7 +657,7 @@ socket.on('errorMsg', (msg) => {
     const nameScreen = document.getElementById('nameScreen');
     const startBtn = document.getElementById('startBtn');
 
-    window.location.reload();
+    setTimeout(() => location.reload(), 50);
 
     if (nameScreen) nameScreen.style.display = 'flex';
     if (startBtn) startBtn.disabled = false;

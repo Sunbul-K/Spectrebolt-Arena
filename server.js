@@ -123,7 +123,6 @@ let NET_TICK = NET_TICK_IDLE;
 let matchPhase = 'running'; 
 let lastFirePacket = {};
 let resetLock = false;
-let roundCounter = 0;
 let pbWriteTimer = null;
 let matchResetTimeout = null;
 
@@ -908,11 +907,6 @@ io.on('connection', socket => {
         const p = players[socket.id];
         if (!p) return;
         p.viewingGameOver = !!val;
-        if (p.viewingGameOver) {
-            p.viewingGameOverRound = roundCounter;
-        } else {
-            delete p.viewingGameOverRound;
-        }
     });
     socket.on('disconnect', () => { 
         console.log(`${socket.playerName ?? 'Unknown player'} has left the arena`);
@@ -1060,16 +1054,6 @@ setInterval(() => {
     }
     const activePlayersArray = Object.values(players).filter(p => !p.isSpectating);
     NET_TICK = activePlayersArray.length > 0 ? NET_TICK_ACTIVE : NET_TICK_IDLE;
-
-    Object.values(players).forEach(p => {
-        try {
-            if (p.viewingGameOverRound !== undefined && roundCounter >= (p.viewingGameOverRound + 2)) {
-                io.to(p.id).emit('forceReload');
-                delete p.viewingGameOverRound;
-                p.viewingGameOver = false;
-            }
-        } catch (e) {}
-    });
 
     Object.values(players).forEach(p => {
         if (p.waitingForRematch) return;
