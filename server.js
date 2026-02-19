@@ -450,8 +450,8 @@ function resetMatch() {
         specialsSpawned.eliminator = false;
         specialsSpawned.rob = false;
 
-        if (elimSpawnTimeout) clearTimeout(elimSpawnTimeout);
-        elimSpawnTimeout = null;
+        if (specialsSpawnTimeout) clearTimeout(specialsSpawnTimeout);
+        specialsSpawnTimeout = null;
         spawnSpecialBots();
 
         const anyWantsRematch = Object.values(players).some(p => p.wantsRematch);
