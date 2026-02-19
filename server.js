@@ -65,6 +65,8 @@ const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 15;
 const JOIN_LIMITS = new Map();
 const personalBests = new Map();
+const ACTIVE_PLAYER_UUIDS = new Set();
+const PLAYER_UUID_TO_SOCKET = new Map();
 
 // Note: Some bans are intentionally broad to prevent common abuse patterns:
 // - mother/father/sister/brother in Arabic & English: harassment & sexual taunts
@@ -430,7 +432,7 @@ function handleSuccessfulJoin(socket, name,forcedSpectator = false, waitingForRe
     socket.emit('personalBestUpdated', {personalBest: pb,isNew: false});
 }
 
-function resetMatch({ preserveViewing = false } = {}) {
+function resetMatch() {
     if (resetLock) return;
     resetLock = true;
 
@@ -448,21 +450,19 @@ function resetMatch({ preserveViewing = false } = {}) {
 
         specialsSpawned.eliminator = false;
         specialsSpawned.rob = false;
-        specialsSpawnTimeout = null;
+
+        if (elimSpawnTimeout) clearTimeout(elimSpawnTimeout);
+        elimSpawnTimeout = null;
         spawnSpecialBots();
 
-        roundCounter++;
-
         const anyWantsRematch = Object.values(players).some(p => p.wantsRematch);
-        const preservedViewers = [];
 
-        Object.values(players).forEach(p => {
+        for (const [id, p] of Object.entries(players)) {
             const pos = getSafeSpawn();
 
             if (anyWantsRematch) {
                 if (p.wantsRematch) {
                     Object.assign(p, {
-                        id: p.id,
                         x: pos.x,
                         y: pos.y,
                         color: generateUniqueColor(),
@@ -479,118 +479,22 @@ function resetMatch({ preserveViewing = false } = {}) {
                         damageTakenMultiplier: 1,
                         lastFireTime: 0,
                         fireCooldown: 100,
-                        justDied: false,
-                        wantsRematch: false,
-                        viewingGameOver: false,
-                        wasRenamedForFilter: false
-                    });
-                } else {
-                    Object.assign(p, {
-                        isSpectating: true,
-                        waitingForRematch: true,
-                        hp: 0,
-                        lives: 0,
-                        score: 0,
                         wantsRematch: false
                     });
-                }
-                return;
-            }
-
-            if (preserveViewing) {
-                if (p.viewingGameOver && !p.wantsRematch) {
-                    Object.assign(p, {
-                        isSpectating: true,
-                        waitingForRematch: true,
-                        hp: 0,
-                        lives: 0,
-                        score: 0,
-                        wantsRematch: false,
-                        viewingGameOver: true
-                    });
-                    preservedViewers.push(p.id);
                 } else {
-                    Object.assign(p, {
-                        id: p.id,
-                        x: pos.x,
-                        y: pos.y,
-                        color: generateUniqueColor(),
-                        hp: 100,
-                        lives: 3,
-                        stamina: 100,
-                        spawnProtectedUntil: Date.now() + 3000,
-                        lastRegenTime: Date.now(),
-                        isSpectating: false,
-                        waitingForRematch: false,
-                        forcedSpectator: false,
-                        score: 0,
-                        input: { moveX: 0, moveY: 0, sprint: false, angle: 0 },
-                        damageTakenMultiplier: 1,
-                        lastFireTime: 0,
-                        fireCooldown: 100,
-                        justDied: false,
-                        wantsRematch: false,
-                        viewingGameOver: false
-                    });
+                    const socket = io.sockets.sockets.get(id);
+                    if (socket) socket.emit('forceReload');
                 }
-                return;
+            } else {
+                const socket = io.sockets.sockets.get(id);
+                if (socket) socket.emit('forceReload');
             }
-
-            Object.assign(p, {
-                id: p.id,
-                x: pos.x,
-                y: pos.y,
-                color: generateUniqueColor(),
-                hp: 100,
-                lives: 3,
-                stamina: 100,
-                spawnProtectedUntil: Date.now() + 3000,
-                lastRegenTime: Date.now(),
-                isSpectating: false,
-                waitingForRematch: false,
-                forcedSpectator:false,
-                score: 0,
-                input: { moveX: 0, moveY: 0, sprint: false, angle: 0 },
-                damageTakenMultiplier: 1,
-                lastFireTime: 0,
-                fireCooldown: 100,
-                justDied:false,
-                wantsRematch:false,
-                viewingGameOver:false
-            });
-        });
+        }
 
         io.emit('mapUpdate', { mapSize: MAP_SIZE, walls });
         matchPhase = 'running';
         io.emit('matchReset', { matchTimer, matchPhase });
-        try {
-            const slimPlayers = {};
-            for (const [id, p] of Object.entries(players)) {
-                if (!isLeaderboardEligible(p)) continue;
-                slimPlayers[id] = {
-                    id, x: p.x, y: p.y, hp: p.hp, angle: p.angle,
-                    isSpectating: p.isSpectating, forcedSpectator: p.forcedSpectator,
-                    spawnProtected: Date.now() < p.spawnProtectedUntil, stamina: p.stamina,
-                    score: p.score, lives: p.lives, color: p.color, name: p.name,
-                    waitingForRematch: !!p.waitingForRematch
-                };
-            }
-            const slimBots = {};
-            for (const [id, b] of Object.entries(bots)) {
-                slimBots[id] = { id: b.id, x: b.x, y: b.y, hp: b.hp, score: b.score, angle: b.angle, name: b.name, color: b.color, retired: !!b.retired };
-            }
-            const slimBullets = {};
-            io.emit('state', { players: slimPlayers, bots: slimBots, bullets: slimBullets, matchTimer, matchPhase });
-        } catch (e) {
-            console.warn('Failed to emit immediate state after reset:', e);
-        }
-        if (preserveViewing && preservedViewers.length) {
-            preservedViewers.forEach(id => {
-                try { io.to(id).emit('connectionStalled'); } catch (e) {}
-            });
-        }
 
-        return true;
     } finally {
         resetLock = false;
     }
@@ -879,6 +783,16 @@ io.on('connection', socket => {
         }
         socket.playerUUID = uuid;
 
+        if (ACTIVE_PLAYER_UUIDS.has(uuid)) {
+            const oldSocketId = PLAYER_UUID_TO_SOCKET.get(uuid);
+            if (oldSocketId) {
+                socket.emit('errorMsg', 'You are connected from another tab. That connection will be closed.');
+                io.sockets.sockets.get(oldSocketId)?.disconnect();
+            }
+        }
+        ACTIVE_PLAYER_UUIDS.add(uuid);
+        PLAYER_UUID_TO_SOCKET.set(uuid, socket.id);
+
         if (now - lastJoin < 5000) {
             socket.emit('errorMsg','Calm down on the join requests, you nimrod.');
             return;
@@ -933,7 +847,7 @@ io.on('connection', socket => {
         let waitingForRematch = false;
 
         if (matchPhase === 'ended') {
-            resetMatch({ preserveViewing: true });
+            resetMatch();
             forcedSpectator = false;
             waitingForRematch = false;
         } else {
@@ -1015,6 +929,12 @@ io.on('connection', socket => {
 
         const color = players[socket.id]?.color;
 
+        const uuid = socket.playerUUID;
+        if (uuid && PLAYER_UUID_TO_SOCKET.get(uuid) === socket.id) {
+            ACTIVE_PLAYER_UUIDS.delete(uuid);
+            PLAYER_UUID_TO_SOCKET.delete(uuid);
+        }
+
         delete players[socket.id];
         delete lastFirePacket[socket.id];
 
@@ -1067,7 +987,7 @@ io.on('connection', socket => {
         }
 
         if (matchPhase === 'ended') {
-            const didReset = resetMatch({ preserveViewing: true });
+            const didReset = resetMatch();
 
             if (didReset) {
                 for (const id of rematchers) {
@@ -1078,6 +998,7 @@ io.on('connection', socket => {
                     } catch (e) {}
                     activeRematches.delete(id);
                 }
+
                 return;
             }
         }
@@ -1131,7 +1052,7 @@ setInterval(() => {
         if (!matchResetTimeout) {
             matchResetTimeout = setTimeout(() => {
                 if (Object.keys(players).length === 0) {
-                    resetMatch({ preserveViewing: false });
+                    resetMatch();
                 }
                 matchResetTimeout = null;
             }, 15000);
