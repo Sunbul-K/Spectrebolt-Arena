@@ -983,7 +983,7 @@ io.on('connection', socket => {
         if (matchPhase === 'ended') {
             const didReset = resetMatch();
 
-            if (didReset) {
+            if (didReset !== false) {
                 for (const id of rematchers) {
                     const rp = players[id];
                     if (!rp) continue;
@@ -1037,7 +1037,7 @@ setInterval(() => {
 
             try {
                 const results = buildFinalResults();
-                io.emit('finalResults', { results });
+                io.emit('finalResults', { results});
             } catch (e) {
                 console.error('Failed to build/emit finalResults:', e);
             }

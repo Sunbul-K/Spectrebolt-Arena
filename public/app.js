@@ -15,7 +15,6 @@ const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 
-let isConnectionStalled = false;
 let isJoining = false;
 let isRematching = false;
 let pbSavedThisMatch = false;
@@ -311,8 +310,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const sprintBtn = document.getElementById('sprintBtn');
     if (sprintBtn) {
-        sprintBtn.addEventListener('touchstart', e => { e.preventDefault(); isMobileSprinting = true; });
-        sprintBtn.addEventListener('touchend', e => { e.preventDefault(); isMobileSprinting = false; });
+        sprintBtn.addEventListener('touchstart', e => { e.preventDefault(); isMobileSprinting = true; }, {passive : false});
+        sprintBtn.addEventListener('touchend', e => { e.preventDefault(); isMobileSprinting = false; }, {passive : false});
     }
 
     window.addEventListener('keydown', e => {
@@ -353,7 +352,6 @@ socket.on('init', d => {
     isJoining = false;
     pbSavedThisMatch = false;
 
-    isConnectionStalled = false;
     isGameOverLocked = false;
     isViewingGameOver = false;
     finalResults = [];
@@ -393,12 +391,6 @@ socket.on('init', d => {
         camY = players[myId].y;
     }
 });
-socket.on('connectionStalled', () => {
-  isConnectionStalled = true;
-  finalResults = [];
-  const winnerBox = document.getElementById('winnerList');
-  if (winnerBox) winnerBox.innerText = "CONNECTION STALLED — A NEW MATCH STARTED";
-});
 socket.on('forceReload', () => {
     setTimeout(() => location.reload(), 100);
 });
@@ -410,7 +402,6 @@ socket.on('rematchDenied', (msg) => {
 socket.on('rematchAccepted', (data) => {
     if (data.id !== myId) return;
 
-    isConnectionStalled = false;
     isGameOverLocked = false;
     isRematching = false;
     rematchRequested = false;
@@ -424,6 +415,7 @@ socket.on('rematchAccepted', (data) => {
     lastSpaceShot = 0;
 
     matchTimer = data.matchTimer;
+    matchPhase = data.matchPhase;
 
     const me = players[myId] || {};
     players[myId] = {
@@ -456,22 +448,20 @@ socket.on('rematchQueued', () => {
     if (rematchBtn) rematchBtn.disabled = true;
 });
 socket.on('matchReset', (data) => {
-  try {
-    matchPhase = data.matchPhase || 'running';
-    matchTimer = typeof data.matchTimer === 'number' ? data.matchTimer : matchTimer;
-  } catch (e) {}
-  
-  const gameOverEl = document.getElementById('gameOver');
-  const me = players[myId];
-  
-  if (me && !me.viewingGameOver && !me.waitingForRematch) {
-    if (gameOverEl) gameOverEl.style.display = 'none';
-    isViewingGameOver = false;
+    try {
+        matchPhase = data.matchPhase || 'running';
+        matchTimer = typeof data.matchTimer === 'number' ? data.matchTimer : matchTimer;
+    } catch (e) {}
+
     isGameOverLocked = false;
-    isConnectionStalled = false;
+    isViewingGameOver = false;
     finalResults = [];
+  
+    const gameOverEl = document.getElementById('gameOver');
+
+  
+    if (gameOverEl) gameOverEl.style.display = 'none';
     try { socket.emit('viewingGameOver', false); } catch (e) {}
-  }
 });
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
@@ -491,10 +481,10 @@ socket.on('finalResults', data => {
 });
 socket.on('state', s => {
     matchTimer = s.matchTimer;
+    matchPhase = s.matchPhase;
     bullets = s.bullets;
     bots = s.bots;
     leaderboardEntities = {};
-    matchPhase = s.matchPhase;
 
     Object.values(s.players).forEach(p => {
         if (p.forcedSpectator) return;
@@ -597,7 +587,7 @@ socket.on('EliminatorRespawned', () => {
     const msg = document.createElement('div');
 
     msg.className = 'elim-msg';
-    msg.textContent = 'THE ELIMINATOR HAS RETURNED';
+    msg.textContent = 'The Eliminator has fallen, but not for long..';
 
     box.appendChild(msg);
     setTimeout(() => msg.remove(), 4000);
@@ -722,11 +712,6 @@ setInterval(() => {
 function renderWinners() {
     const winnerBox = document.getElementById('winnerList');
     if (!winnerBox) return;
-
-    if (isConnectionStalled) {
-        winnerBox.innerHTML = `<div style="color: #f54242;">CONNECTION STALLED — A NEW MATCH STARTED</div>`;
-        return;
-    }
 
     let all = (Array.isArray(finalResults) && finalResults.length) ? finalResults.slice() : [];
     
@@ -954,7 +939,7 @@ function draw(){
         const localWaiting = !!players[myId]?.waitingForRematch;
         const shouldShowGameOverBase = (activePlayers.length === 0 && !isRematching && matchTimer > 0) || (matchTimer <= 0 && !isRematching);
 
-        const shouldShowGameOver = (matchPhase !== 'running') && (localWaiting || isViewingGameOver || (shouldShowGameOverBase && !isRematching));
+        const shouldShowGameOver = (matchPhase !== 'running') && (localWaiting ||isViewingGameOver || shouldShowGameOverBase);
 
         if (shouldShowGameOver) {
             if (!isGameOverLocked) {
