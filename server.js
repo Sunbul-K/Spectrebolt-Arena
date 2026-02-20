@@ -56,10 +56,10 @@ const TICK_RATE = 1000 / 30;
 const BASE_SPEED = 4.6;
 const SPRINT_SPEED = 6.8;
 const ENTITY_RADIUS = 18;
-const MAX_PLAYERS=10;
-const JOIN_CUTOFF_SECONDS=5*60;
+const MAX_PLAYERS = 10;
+const JOIN_CUTOFF_SECONDS = 5*60;
 const BULLET_LIFETIME = 1200;
-const MAX_BULLETS=60;
+const MAX_BULLETS = 60;
 const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 15;
@@ -74,14 +74,14 @@ const PLAYER_UUID_TO_SOCKET = new Map();
 // - nigg: we know why
 // - Names of religions & holy books: prevent religiophobia of any kind
 
-const BANNED_WORDS = ['fuck','kink','3aha','ghabi','mother','beid','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','segs','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','manyak','manyaak','lick','kiss','titt'];
+const BANNED_WORDS = ['fuck','nicker','hilter','puffd','kink','3aha','ghabi','mother','beid','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','segs','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitu','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','manyak','manyaak','lick','kiss','titt'];
 const WORD_ONLY_BANS = ['ass','tit','cum','rim'];
 
-const SAFE_SUBSTRING_BANS = ['touch','manyak','manyaak','kiss','diddle','racial','prostitute','slave','horny','epste','slut','cunt','cock','israel','demon','terror','sister','quran','buddh','bible','hindu','athei','asshole','beid','3aha','ghabi','pedo','hog','cocaine','tahar','boob','baby','kids','suck','bend','titt','kalb','dork','nut','egg','twat','akh','abo','umm','anus','oral','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','god','bad','bush','butt','muslim','islam','kys','like','teez','groom','pimp','khara','zib','nazi','diddy','ejac','coke','dealer','meat','babe','maniac','manyook','kus','kids','piss','jew','segs','sex','anal','khara','ukht','vagin','groom'];
+const SAFE_SUBSTRING_BANS = ['touch','nicker','hilter','puffd','manyak','manyaak','kiss','diddle','racial','prostitu','slave','horny','epste','slut','cunt','cock','israel','demon','terror','sister','quran','buddh','bible','hindu','athei','asshole','beid','3aha','ghabi','pedo','hog','cocaine','tahar','boob','baby','kids','suck','bend','titt','kalb','dork','nut','egg','twat','akh','abo','umm','anus','oral','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','god','bad','bush','butt','muslim','islam','kys','like','teez','groom','pimp','khara','zib','nazi','diddy','ejac','coke','dealer','meat','babe','maniac','manyook','kus','kids','piss','jew','segs','sex','anal','khara','ukht','vagin','groom'];
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => !WORD_ONLY_BANS.includes(w));
 
-const RESERVED = ['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev','me',];
+const RESERVED = ['bobby','rob','eliminator','the eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev','me'];
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
@@ -95,7 +95,7 @@ const leetmap = {
     '5': ['s','kh'], // English for Arabic letter kha'
     '6': ['g'], 
     '7': ['t','h'], // English for Arabic letter ha'
-    '8': ['b','gh'], // 8 is sometimes used for ghain in Arabic 
+    '8': ['b','gh'], // 8 is sometimes used for ghain in Arabic (rarely but still)
     '9': ['g'], 
     '@': ['a'], 
     '$': ['s'], 
@@ -116,7 +116,7 @@ let bots = {};
 let bullets = {};
 let bulletIdCounter = 0;
 let matchTimer = 15 * 60;
-let walls = generateWalls(12);
+let walls = generateWalls(10);
 let botAccumulator = 0;
 let bulletAccumulator = 0; 
 let NET_TICK = NET_TICK_IDLE;
@@ -384,11 +384,11 @@ function spawnSpecialBots() {
 
         if (!specialsSpawned.eliminator && !bots['bot_eliminator'] && Math.random() <= 0.20) {
             specialsSpawned.eliminator = true;
-            const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
+            const elim = new Bot('bot_eliminator', 'The Eliminator', '#E24A4A', 3.9, 1100);
             elim.isRetreating = false;
             elim.damageTakenMultiplier = 0.4;
             bots['bot_eliminator'] = elim;
-            io.emit('EliminatorSpawned', {id: 'bot_eliminator', name: 'Eliminator', timestamp: Date.now()});
+            io.emit('EliminatorSpawned', {id: 'bot_eliminator', name: 'The Eliminator', timestamp: Date.now()});
         }
         specialsSpawnTimeout = null;
     }, 5000);
