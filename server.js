@@ -441,7 +441,7 @@ function resetMatch() {
 
         bullets = {};
 
-        walls = generateWalls(12);
+        walls = generateWalls(10);
 
         bots = {};
         bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
