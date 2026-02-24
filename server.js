@@ -165,10 +165,9 @@ function containsBannedWord(name) {
     }
 
     for (const v of variants) {
-        const strippedVariant = stripVowels(v);
         for (const w of SUBSTRING_BANS) {
             const strippedWord = SAFE_SUBSTRING_BANS.includes(w) ? w : stripVowels(w);
-            if (v.includes(w) || v.includes(strippedVariant) || v.includes(strippedWord)) return true;
+            if (v.includes(w) || v.includes(strippedWord)) return true;
         }
     }
 
