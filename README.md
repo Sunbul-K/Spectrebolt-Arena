@@ -1,5 +1,5 @@
 # Spectrebolt Arena 
-A real-time 2D top-down multiplayer shooter game built using **Node.js**, **Socket.io** and **HTML5 Canvas** through sheer dedication for my little brother (would never repeat it ever again).
+A real-time 2D top-down multiplayer shooter game built using **Node.js**, **Socket.io** and **HTML5 Canvas**.
 
 ---
 
@@ -7,9 +7,9 @@ A real-time 2D top-down multiplayer shooter game built using **Node.js**, **Sock
 * **Real-Time Networking:** Uses WebSockets (Socket.io) for low-latency player synchronization and bullet tracking.
 * **Custom Game Engine:** Built from scratch without external game frameworks to maximize performance and control.
 * **Physics & Math:** * Directional aiming using `Math.atan2`.
-    * Projectile motion using Trigonometric functions (`cos`, `sin`).
-    * Circle-based collision detection using the Distance Formula.
-* **Smart AI Bots:** Integrated server-side bots with autonomous targeting and movement logic.
+    * Projectile motion using trigonometric functions (`cos`, `sin`).
+    * Circle-based collision detection using the distance Formula.
+* **Smart AI Bots:** Integrated server-side bots with autonomous targeting, movement logic & powers.
 * **Camera System:** Dynamic world-to-screen transformation allowing the camera to follow the local player.
 * **Petty Game Design:** Built to punish players attempting to bypass the name filter by renaming them and having them lose 5 more hp than normal players for the first round they're playing
 
@@ -29,8 +29,8 @@ Check out the game at **[Spectrebolt Arena](https://spectrebolt-arena-9xk4.onren
 * **Space:** Shooting
 
 ### - Controls on Mobile/Tablet/Phablet:
-* **Left Joystick (Gray one):** Moving
-*  **Right Joystick (Red one):** Shooting and Aiming
+* **Left Joystick (Gray One):** Moving
+*  **Right Joystick (Red One):** Shooting and Aiming
 * **Run button:** Sprinting 
 
 ---

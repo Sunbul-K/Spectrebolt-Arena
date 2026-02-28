@@ -50,6 +50,10 @@
                 PERSONAL BEST: 0
             </div>
 
+            <div id="statsDisplay">
+                WINS: 0 | GAMES: 0 | W/L: 0%
+            </div>
+
             <input type="text" id="nameInput" placeholder="NICKNAME" maxlength="13">
             <button id="startBtn">JOIN ARENA</button>
             <button style="margin-top:10px;font-size:16px;background:#444;color:white" onclick="openHowTo()">HOW TO PLAY</button>
@@ -61,9 +65,9 @@
 
                 <div id="howto-mobile">
                     <ul>
-                        <li><b>Move:</b> Left joystick</li>
-                        <li><b>Aim & Shoot:</b> Right (red) joystick</li>
-                        <li><b>Run:</b> RUN button (uses stamina)</li>
+                        <li><b>Move:</b> Left (Gray) joystick</li>
+                        <li><b>Aim & Shoot:</b> Right (Red) joystick</li>
+                        <li><b>Run:</b> RUN button</li>
                     </ul>
                 </div>
 
@@ -83,6 +87,113 @@
             </div>
         </div>
 
+        <div id="shareModal" style="display:none;">
+            <div class="share-box">
+                <h2 id="share-title">SHARE YOUR SCORE</h2>
+                <p id="share-subtitle" style="font-size: 14px; color: #aaa; margin: 10px 0 20px;">Select a platform to share</p>
+                
+                <div class="share-grid">
+                    <button class="share-platform-btn" data-platform="whatsapp">
+                        <span class="share-icon">
+                            <svg viewBox="0 0 32 32" fill="currentColor">
+                                <path d="M16.04 2.003c-7.732 0-14.01 6.276-14.01 14.008
+                                    0 2.475.648 4.897 1.882 7.04L2 30l7.138-1.864
+                                    a13.94 13.94 0 006.902 1.86h.006
+                                    c7.73 0 14.01-6.276 14.01-14.008
+                                    0-7.732-6.28-13.985-14.016-13.985zm0 25.504
+                                    a11.55 11.55 0 01-5.885-1.608l-.423-.25-4.237 1.106
+                                    1.13-4.128-.275-.425a11.53 11.53 0 01-1.783-6.178
+                                    c0-6.392 5.204-11.596 11.595-11.596
+                                    6.39 0 11.594 5.204 11.594 11.596
+                                    0 6.392-5.203 11.596-11.594 11.596zm6.373-8.7
+                                    c-.348-.174-2.06-1.018-2.38-1.135
+                                    -.318-.116-.55-.174-.78.174
+                                    -.23.348-.9 1.135-1.1 1.37
+                                    -.2.23-.404.26-.752.087
+                                    -.348-.174-1.47-.542-2.8-1.73
+                                    -1.035-.923-1.734-2.06-1.935-2.408
+                                    -.2-.348-.022-.536.152-.71
+                                    .156-.155.348-.404.522-.608
+                                    .174-.2.23-.348.348-.58
+                                    .116-.23.058-.435-.03-.61
+                                    -.087-.174-.78-1.87-1.07-2.56
+                                    -.28-.67-.57-.58-.78-.59
+                                    -.2-.01-.43-.01-.66-.01
+                                    -.23 0-.61.087-.93.435
+                                    -.318.348-1.22 1.19-1.22 2.9
+                                    0 1.71 1.25 3.36 1.42 3.59
+                                    .174.23 2.46 3.76 5.96 5.27
+                                    .83.36 1.48.58 1.99.74
+                                    .836.266 1.596.23 2.198.14
+                                    .67-.1 2.06-.84 2.35-1.65
+                                    .29-.81.29-1.51.2-1.65
+                                    -.09-.14-.32-.23-.67-.4z"
+                                />
+                            </svg>
+                        </span>
+                    </button>
+                    <button class="share-platform-btn" data-platform="telegram">
+                        <span class="share-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9.04 15.47l-.39 5.52c.56 0 .8-.24 1.1-.53
+                                    l2.64-2.5 5.48 4.01c1 .56 1.72.27 1.98-.93
+                                    L24 3.64c.32-1.48-.54-2.06-1.52-1.7
+                                    L1.3 9.84c-1.45.56-1.43 1.35-.25 1.71
+                                    l5.42 1.69L19.05 5.2c.59-.39 1.13-.17.69.22"
+                                />
+                            </svg>
+                        </span>
+                    </button>
+                    <button class="share-platform-btn" data-platform="facebook">
+                        <span class="share-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M22.675 0h-21.35C.597 0 0 .597 0 1.326v21.348
+                                    C0 23.403.597 24 1.326 24h11.49v-9.294H9.692V11.01h3.124
+                                    V8.309c0-3.1 1.893-4.788 4.659-4.788
+                                    1.325 0 2.464.099 2.795.143v3.24h-1.918
+                                    c-1.504 0-1.796.715-1.796 1.763v2.313h3.587
+                                    l-.467 3.696h-3.12V24h6.116C23.403 24 24 23.403 24 22.674V1.326
+                                    C24 .597 23.403 0 22.675 0z"
+                                />
+                            </svg>
+                        </span>
+                    </button>
+                    <button class="share-platform-btn" data-platform="x">
+                        <span class="share-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2H21l-6.54 7.47L22 22h-6.8l-5.3-6.9L3.8 22H1l6.98-7.97L2 2h6.9l4.8 6.3L18.244 2z"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <button class="share-platform-btn" data-platform="instagram">
+                        <span class="share-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2.2c3.2 0 3.584.012 4.85.07
+                                    1.366.062 2.633.332 3.608 1.307
+                                    .975.975 1.245 2.242 1.307 3.608
+                                    .058 1.266.07 1.65.07 4.85s-.012 3.584-.07 4.85
+                                    c-.062 1.366-.332 2.633-1.307 3.608
+                                    -.975.975-2.242 1.245-3.608 1.307
+                                    -1.266.058-1.65.07-4.85.07s-3.584-.012-4.85-.07
+                                    c-1.366-.062-2.633-.332-3.608-1.307
+                                    -.975-.975-1.245-2.242-1.307-3.608
+                                    -.058-1.266-.07-1.65-.07-4.85s.012-3.584.07-4.85
+                                    c.062-1.366.332-2.633 1.307-3.608
+                                    .975-.975 2.242-1.245 3.608-1.307
+                                    1.266-.058 1.65-.07 4.85-.07zm0 3.6
+                                    a6.2 6.2 0 100 12.4 6.2 6.2 0 000-12.4zm6.406-.9
+                                    a1.44 1.44 0 11-2.88 0 1.44 1.44 0 012.88 0z"
+                                />
+                            </svg>
+                        </span>
+                    </button>
+                </div>
+
+                <button class="share-copy-btn" id="shareCopyBtn">COPY TEXT TO CLIPBOARD</button>
+                <button class="share-close-btn" onclick="closeShareModal()">CLOSE</button>
+            </div>
+        </div>
+
         <div id="lateSpectatorBanner">
             You joined during the final 5 minutes.<br>
             <b>You are spectating until the match ends.</b>
@@ -94,10 +205,12 @@
             <h1 style="color: var(--accent);">ARENA CLOSED</h1>
             <div id="winnerList" style="font-size: 24px; text-align: center; color: white;"></div>
             <div id="score"></div>
-            <button id="rematchBtn">REMATCH</button>
+            <button id="rematchBtn" style="background: #0f4;">REMATCH</button>
+            <button id="shareScoreBtn">SHARE YOUR SCORE</button>
         </div>
 
-        <div id="robNotice"></div>
+        <div id="sleipnirNotice"></div>
+        <div id="translocatorNotice"></div>
         <div id="eliminatorNotice"></div>
 
         <button id="mapToggle">HIDE MAP</button>

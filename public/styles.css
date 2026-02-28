@@ -90,7 +90,7 @@ body {
     font-weight: bold;
     cursor: pointer;
 }
-#personalBestDisplay{
+#personalBestDisplay {
     position: absolute;
     top: 15px;
     left: 15px;
@@ -98,6 +98,119 @@ body {
     font-weight: bold;
     font-size: 16px;
     text-align: right;
+}
+#statsDisplay {
+    position: absolute;
+    top: 35px;
+    left: 15px;
+    color: #0f4;
+    font-weight: bold;
+    font-size: 12px;
+}
+#shareScoreBtn {
+    background:#444;
+    color:white;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.1s;
+    margin-top: 10px;
+}
+#shareScoreBtn:hover {
+    transform: scale(1.05);
+}
+#shareModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+.share-box {
+    background: #222;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 420px;
+    text-align: center;
+}
+.share-box h2 {
+    margin-top: 0;
+    color: #0f4;
+    margin-bottom: 5px;
+}
+.share-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.share-platform-btn {
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    background: #0f4;
+    color: #000;
+    cursor: pointer;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+.share-platform-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(0,255,68,0.5);
+}
+.share-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+.share-icon svg {
+    width: 24px;
+    height: 24px;
+}
+.share-copy-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: #0f4;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: transform 0.1s;
+}
+.share-copy-btn:hover {
+    transform: scale(1.02);
+}
+.share-close-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    background: #444;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+.share-close-btn:hover {
+    transform: scale(1.02);
+}
+#gameOver {
+    position: relative;
 }
 canvas { display: block; }
 #killFeed {
@@ -122,7 +235,14 @@ canvas { display: block; }
     80% { opacity: 1; }
     100% { opacity: 0; transform: translateX(20px); }
 }
-#robNotice {
+#translocatorNotice {
+    position: fixed;
+    top: calc(15px + 50px); 
+    left: 15px;
+    pointer-events: none;
+    z-index: 100;
+}
+#sleipnirNotice {
     position: fixed;
     top: calc(15px + 90px); 
     left: 15px;
@@ -136,13 +256,21 @@ canvas { display: block; }
     pointer-events: none;
     z-index: 100;
 }
-.rob-msg {
-    background: blue;
-    color: #d6e9ff;
+.translocator-msg {
+    background: purple;
+    color: rgb(15, 255, 3);
     padding: 6px 12px;
     border-radius: 6px;
     font-weight: 600;
-    animation: robFade 4s forwards;
+    animation: translocatorFade 4s forwards;
+}
+.sleipnir-msg {
+    background: #FFD700;
+    color: black;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    animation: sleipnirFade 4s forwards;
 }
 .elim-msg {
     background: red;
@@ -153,17 +281,23 @@ canvas { display: block; }
     letter-spacing: 1px;
     animation: elimFade 4s forwards;
 }
-@keyframes robFade {
-    0% { opacity: 0; transform: translateX(-20px); }
-    15% { opacity: 1; transform: translateX(0); }
-    80% { opacity: 1; }
-    100% { opacity: 0; transform: translateX(-20px); }
-}
 @keyframes elimFade {
     0% { opacity: 0; transform: translateX(-30px) scale(0.95); }
     15% { opacity: 1; transform: translateX(0) scale(1); }
     80% { opacity: 1; }
     100% { opacity: 0; transform: translateX(-30px) scale(0.95); }
+}
+@keyframes translocatorFade {
+    0% { opacity: 0; transform: translateX(-20px); }
+    15% { opacity: 1; transform: translateX(0); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-20px); }
+}
+@keyframes sleipnirFade {
+    0% { opacity: 0; transform: translateX(-20px); }
+    15% { opacity: 1; transform: translateX(0); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-20px); }
 }
 #lateSpectatorBanner {
     position: fixed;
@@ -216,11 +350,10 @@ canvas { display: block; }
     text-align: center; 
     color: white;
 }
-#nameScreen button, #gameOver button { 
+#nameScreen button, #gameOver button:not(#shareScoreBtn) { 
     margin-top: 25px; 
     padding: 15px 50px; 
     font-size: 22px; 
-    background: var(--accent); 
     border: none; 
     cursor: pointer; 
     font-weight: bold; 
@@ -239,7 +372,8 @@ canvas { display: block; }
     font-size: 14px;
 }
 #ui { 
-    left: 15px;  min-width: 160px; 
+    left: 15px;  
+    min-width: 160px; 
 }
 #leaderboard {
     position: fixed; 

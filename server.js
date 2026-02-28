@@ -18,7 +18,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
 app.get('/sitemap.xml', (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const urls = [
@@ -41,6 +40,9 @@ app.get('/sitemap.xml', (req, res) => {
     res.header('Content-Type', 'application/xml');
     res.send(xml);
 });
+app.get('/health', (req, res) => {
+  res.status(200).send('ok');
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -48,40 +50,75 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 10000;
-const PB_FILE = process.env.PB_FILE || path.join(__dirname, 'personal_bests.json');
 
-const activeRematches = new Set();
-const MAP_SIZE = 2000;
 const TICK_RATE = 1000 / 30;
-const BASE_SPEED = 4.6;
-const SPRINT_SPEED = 6.8;
-const ENTITY_RADIUS = 18;
-const MAX_PLAYERS = 10;
-const JOIN_CUTOFF_SECONDS = 5*60;
-const BULLET_LIFETIME = 1200;
-const MAX_BULLETS = 60;
-const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 15;
+let NET_TICK = NET_TICK_IDLE;
+let lastNetSend = 0;
+let lastTickTime = Date.now();
+let lastFirePacket = {};
+
+const MAX_PLAYERS = 12;
+let players = {};
+
+let bots = {};
+let botAccumulator = 0;
+
+const BULLET_LIFETIME = 1500;
+const MAX_BULLETS = 60;
+let bullets = {};
+let bulletIdCounter = 0;
+let bulletAccumulator = 0; 
+
+const BASE_SPEED = 5.29;
+const SPRINT_SPEED = 6.55; 
+const FASTSPEED = SPRINT_SPEED + 3;
+
+const ENTITY_RADIUS = 18;
+const BULLET_RADIUS = 4;
+
+const JOIN_CUTOFF_SECONDS = 5*60;
 const JOIN_LIMITS = new Map();
+
+const PB_FILE = process.env.PB_FILE || path.join(__dirname, 'personal_bests.json');
+const WINS_FILE = process.env.WINS_FILE || path.join(__dirname, 'wins.json');
+const playerWins = new Map();
 const personalBests = new Map();
 const ACTIVE_PLAYER_UUIDS = new Set();
 const PLAYER_UUID_TO_SOCKET = new Map();
+let pbWriteTimer = null;
+let winsWriteTimer = null;
 
-// Note: Some bans are intentionally broad to prevent common abuse patterns:
-// - mother/father/sister/brother in Arabic & English: harassment & sexual taunts
-// - twin/tower: Twin Towers references
-// - nigg: we know why
-// - Names of religions & holy books: prevent religiophobia of any kind
+const MAP_SIZE = 2560;
+const totalObjects = Object.keys(players).length + Object.keys(bots).length;
+const maxObjectsPerCell = 4;
+const cellsPerRow = Math.max(5, Math.min(Math.ceil(Math.sqrt(totalObjects / maxObjectsPerCell)), 10));
+const GRID_SIZE = MAP_SIZE / cellsPerRow;
+let walls = generateWalls(14);
 
-const BANNED_WORDS = ['fuck','nicker','hilter','puffd','kink','3aha','ghabi','mother','beid','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','segs','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitu','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','manyak','manyaak','lick','kiss','titt'];
+const activeRematches = new Set();
+let matchPhase = 'running';
+let matchTimer = 15 * 60;
+let resetLock = false;
+let matchResetTimeout = null;
+
+/*  Note: 
+        Some bans are intentionally broad to prevent common abuse patterns:
+            - mother/father/sister/brother in Arabic & English: harassment & sexual taunts
+            - twin/tower: Twin Towers references
+            - nigg: we know why
+            - Names of religions & holy books: prevent religiophobia of any kind 
+*/
+
+const BANNED_WORDS = ['fuck','nicker','hilter','puffd','pdidd','kink','3aha','ghabi','mother','beid','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','segs','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitu','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','manyak','manyaak','lick','kiss','titt'];
 const WORD_ONLY_BANS = ['ass','tit','cum','rim'];
 
-const SAFE_SUBSTRING_BANS = ['touch','nicker','hilter','puffd','manyak','manyaak','kiss','diddle','racial','prostitu','slave','horny','epste','slut','cunt','cock','israel','demon','terror','sister','quran','buddh','bible','hindu','athei','asshole','beid','3aha','ghabi','pedo','hog','cocaine','tahar','boob','baby','kids','suck','bend','titt','kalb','dork','nut','egg','twat','akh','abo','umm','anus','oral','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','god','bad','bush','butt','muslim','islam','kys','like','teez','groom','pimp','khara','zib','nazi','diddy','ejac','coke','dealer','meat','babe','maniac','manyook','kus','kids','piss','jew','segs','sex','anal','khara','ukht','vagin','groom'];
+const SAFE_SUBSTRING_BANS = ['touch','nicker','hilter','puffd','pdidd','manyak','manyaak','kiss','diddle','racial','prostitu','slave','horny','epste','slut','cunt','cock','israel','demon','terror','sister','quran','buddh','bible','hindu','athei','asshole','beid','3aha','ghabi','pedo','hog','cocaine','tahar','boob','baby','kids','suck','bend','titt','kalb','dork','nut','egg','twat','akh','abo','umm','anus','oral','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','god','bad','bush','butt','muslim','islam','kys','like','teez','groom','pimp','khara','zib','nazi','diddy','ejac','coke','dealer','meat','babe','maniac','manyook','kus','kids','piss','jew','segs','sex','anal','khara','ukht','vagin','groom'];
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => !WORD_ONLY_BANS.includes(w));
 
-const RESERVED = ['bobby','rob','eliminator','the eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev','me'];
+const RESERVED = ['bobby','rob','the eliminator','the translocator','the sleipnir','sleipnir','translocator','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev','me',];
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
@@ -95,7 +132,7 @@ const leetmap = {
     '5': ['s','kh'], // English for Arabic letter kha'
     '6': ['g'], 
     '7': ['t','h'], // English for Arabic letter ha'
-    '8': ['b','gh'], // 8 is sometimes used for ghain in Arabic (rarely but still)
+    '8': ['b','gh'], // 8 is sometimes used for ghain in Arabic 
     '9': ['g'], 
     '@': ['a'], 
     '$': ['s'], 
@@ -108,23 +145,6 @@ const leetmap = {
     "a'a":['3'], // English for Arabic letter a'ayan
     "3'":['gh'] // English for Arabic letter ghain
 };
-
-let lastNetSend = 0;
-let lastTickTime = Date.now();
-let players = {};
-let bots = {};
-let bullets = {};
-let bulletIdCounter = 0;
-let matchTimer = 15 * 60;
-let walls = generateWalls(10);
-let botAccumulator = 0;
-let bulletAccumulator = 0; 
-let NET_TICK = NET_TICK_IDLE;
-let matchPhase = 'running'; 
-let lastFirePacket = {};
-let resetLock = false;
-let pbWriteTimer = null;
-let matchResetTimeout = null;
 
 function stripVowels(str) {
     return str.replace(/[aeiouy]/g, '');
@@ -194,6 +214,77 @@ function isNameTaken(name) {
         p.name && p.name.toLowerCase() === normalized
     );
 }
+
+function loadWinsFromDisk() {
+    try {
+        if (!fs.existsSync(WINS_FILE)) {
+            console.log('Wins file does not exist at', WINS_FILE);
+            return;
+        }
+        const raw = fs.readFileSync(WINS_FILE, 'utf8');
+        const obj = JSON.parse(raw || '{}');
+        for (const [k, v] of Object.entries(obj)) {
+            playerWins.set(k, { wins: Number(v.wins) || 0, gamesPlayed: Number(v.gamesPlayed) || 0 });
+        }
+        console.log(`Loaded ${playerWins.size} win record(s) from disk (${WINS_FILE})`);
+    } catch (e) {
+        console.warn('Failed to load wins from disk:', e);
+    }
+}
+
+function persistWinsSyncAtomic() {
+    const obj = Object.fromEntries(playerWins);
+    for (const [k, v] of playerWins.entries()) {
+        obj[k] = { wins: v.wins, gamesPlayed: v.gamesPlayed };
+    }
+    try {
+        const tmp = WINS_FILE + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify(obj), { encoding: 'utf8' });
+        fs.renameSync(tmp, WINS_FILE);
+        console.log(`Saved wins to ${WINS_FILE}; ${playerWins.size} records in total (sync)`);
+    } catch (e) {
+        console.warn('Failed to write wins file to local disk:', e);
+    }
+}
+function persistWinsAsyncDebounced(delay = 1000) {
+    if (winsWriteTimer) clearTimeout(winsWriteTimer);
+    winsWriteTimer = setTimeout(async () => {
+        winsWriteTimer = null;
+        const obj = Object.fromEntries(playerWins);
+        for (const [k, v] of playerWins.entries()) {
+            obj[k] = { wins: v.wins, gamesPlayed: v.gamesPlayed };
+        }
+        const tmp = WINS_FILE + '.tmp';
+        try {
+            await fs.promises.writeFile(tmp, JSON.stringify(obj), 'utf8');
+            await fs.promises.rename(tmp, WINS_FILE);
+            console.log(`Saved wins to ${WINS_FILE}; ${playerWins.size} records in total (async)`);
+        } catch (e) {
+            console.warn('Async wins write failed, falling back to sync:', e);
+            try { persistWinsSyncAtomic(); } catch (err) { console.error('Fallback persist failed:', err); }
+        }
+    }, delay);
+}
+function maybeSaveWin(p, won) {
+    if (!p || !p.uuid) {
+        console.warn('maybeSaveWin called with missing player or uuid', !!p, p?.id);
+        return { wins: 0, gamesPlayed: 0 };
+    }
+
+    let current = playerWins.get(p.uuid) || { wins: 0, gamesPlayed: 0 };
+    current.gamesPlayed++;
+    
+    if (won) {
+        current.wins++;
+    }
+    
+    playerWins.set(p.uuid, current);
+    persistWinsAsyncDebounced(100);
+    
+    console.log(`Game recorded: uuid=${p.uuid} wins=${current.wins} games=${current.gamesPlayed}`);
+    return current;
+}
+loadWinsFromDisk();
 
 function loadPersonalBestsFromDisk() {
   try {
@@ -305,12 +396,10 @@ function generateWalls(count) {
     }
     return newWalls;
 }
-
 function collidesWithWall(x, y, r = ENTITY_RADIUS) {
     if (x < r || y < r || x > MAP_SIZE - r || y > MAP_SIZE - r) return true;
     return walls.some(w => x + r > w.x && x - r < w.x + w.w && y + r > w.y && y - r < w.y + w.h);
 }
-
 function getSafeSpawn() {
     let x, y, attempts = 0;
     const SPAWN_BUFFER = 50;
@@ -358,39 +447,65 @@ function sanitizeInput(raw = {}) {
 
 function shouldRespawnBot(botId) {
     if (matchTimer <= 0) return false;
-    if (botId === 'bot_rob') return Math.random() <= 0.75;
+    if (botId === 'bot_rob') return true; 
+    if (botId === 'bot_sleipnir') return Math.random() <= 0.75;
+    if (botId === 'bot_translocator') return Math.random() <= 0.5;
     if (botId === 'bot_eliminator') return Math.random() <= 0.4;
     return true;
 }
 
 let specialsSpawned = {
     rob: false,
-    eliminator: false
+    sleipnir: false,
+    eliminator: false,
+    translocator:false
 };
 
-let specialsSpawnTimeout = null;
+let sleipnirSpawnTimeout = null;
+let elimSpawnTimeout = null;
+let translocatorSpawnTimeout = null;
 
 function spawnSpecialBots() {
-    if (specialsSpawnTimeout) return; 
-    specialsSpawnTimeout = setTimeout(() => {
-        if (!specialsSpawned.rob && !bots['bot_rob'] && Math.random() <= 0.75) {
-            specialsSpawned.rob = true;
-            const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED + 2, 950);
-            rob.damageTakenMultiplier = 0.75;
-            bots['bot_rob'] = rob;
-            io.emit('RobSpawned', {id: 'bot_rob', name: 'Rob', timestamp: Date.now()});
+    if (sleipnirSpawnTimeout || elimSpawnTimeout || translocatorSpawnTimeout) return; 
+    if (!specialsSpawned.rob && !bots['bot_rob']) {
+        specialsSpawned.rob = true;
+        const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED + 2, 900);
+        rob.damageTakenMultiplier = 0.7;
+        bots['bot_rob'] = rob;
+    }
+    sleipnirSpawnTimeout = setTimeout(() => {
+        if (!specialsSpawned.sleipnir && !bots['bot_sleipnir'] && Math.random() <= 0.75) {
+            specialsSpawned.sleipnir = true;
+            const sleipnir = new Bot('bot_sleipnir', 'The Sleipnir', '#FFD700', FASTSPEED, 950);
+            sleipnir.damageTakenMultiplier = 0.6;
+            bots['bot_sleipnir'] = sleipnir;
+            io.emit('sleipnirSpawned', {id: 'bot_sleipnir', name: 'The Sleipnir', timestamp: Date.now()});
         }
-
-        if (!specialsSpawned.eliminator && !bots['bot_eliminator'] && Math.random() <= 0.20) {
+        sleipnirSpawnTimeout = null;
+    }, 5000);
+    elimSpawnTimeout = setTimeout(() => {
+        if (!specialsSpawned.eliminator && !bots['bot_eliminator'] && Math.random() <= 0.2) {
             specialsSpawned.eliminator = true;
-            const elim = new Bot('bot_eliminator', 'The Eliminator', '#E24A4A', 3.9, 1100);
+            const elim = new Bot('bot_eliminator', 'The Eliminator', '#E24A4A', 4.7, 1100);
             elim.isRetreating = false;
             elim.damageTakenMultiplier = 0.4;
             bots['bot_eliminator'] = elim;
             io.emit('EliminatorSpawned', {id: 'bot_eliminator', name: 'The Eliminator', timestamp: Date.now()});
         }
-        specialsSpawnTimeout = null;
-    }, 5000);
+        elimSpawnTimeout = null;
+    }, 7*60*1000+30*1000);
+    translocatorSpawnTimeout = setTimeout(() => {
+        if (!specialsSpawned.translocator && !bots['bot_translocator'] && Math.random() <= 0.35) {
+            specialsSpawned.translocator = true;
+            const translocator = new Bot('bot_translocator', 'The Translocator', 'purple', BASE_SPEED, 1000);
+            translocator.damageTakenMultiplier = 0.8;
+            translocator.teleportCooldown = 0;
+            translocator.lastTeleportTime = 0;
+            bots['bot_translocator'] = translocator;
+            io.emit('TranslocatorSpawned', {id: 'bot_translocator', name: 'The Translocator', timestamp: Date.now()});
+        }
+        translocatorSpawnTimeout = null;
+    }, 4*60*1000);
 }
 
 function isLeaderboardEligible(p) {
@@ -440,24 +555,25 @@ function resetMatch() {
 
         bullets = {};
 
-        walls = generateWalls(10);
+        walls = generateWalls(14);
 
         bots = {};
-        bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
+        bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 4.03, 800);
         bots['bot_bobby'].damageTakenMultiplier = 1.35;
 
-        specialsSpawned.eliminator = false;
-        specialsSpawned.rob = false;
+        specialsSpawned.rob = specialsSpawned.sleipnir = specialsSpawned.eliminator = specialsSpawned.translocator = false;
 
-        if (specialsSpawnTimeout) clearTimeout(specialsSpawnTimeout);
-        specialsSpawnTimeout = null;
+        if (sleipnirSpawnTimeout) clearTimeout(sleipnirSpawnTimeout);
+        if (elimSpawnTimeout) clearTimeout(elimSpawnTimeout);
+        if (translocatorSpawnTimeout) clearTimeout(translocatorSpawnTimeout);
+        sleipnirSpawnTimeout = elimSpawnTimeout = translocatorSpawnTimeout = null;
+
         spawnSpecialBots();
 
         const anyWantsRematch = Object.values(players).some(p => p.wantsRematch);
 
         for (const [id, p] of Object.entries(players)) {
             const pos = getSafeSpawn();
-
             if (anyWantsRematch) {
                 if (p.wantsRematch) {
                     Object.assign(p, {
@@ -498,6 +614,46 @@ function resetMatch() {
     }
 }
 
+class SpatialGrid {
+    constructor() {
+        this.cells = {};
+    }
+
+    getKey(x, y) {
+        const col = Math.floor(x / GRID_SIZE);
+        const row = Math.floor(y / GRID_SIZE);
+        return `${col},${row}`;
+    }
+
+    insert(entity) {
+        const key = this.getKey(entity.x, entity.y);
+        if (!this.cells[key]) this.cells[key] = [];
+        this.cells[key].push(entity);
+    }
+
+    getNearby(x, y) {
+        const nearby = [];
+        const col = Math.floor(x / GRID_SIZE);
+        const row = Math.floor(y / GRID_SIZE);
+
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                const key = `${col + dx},${row + dy}`;
+                if (this.cells[key]) {
+                    nearby.push(...this.cells[key]);
+                }
+            }
+        }
+        return nearby;
+    }
+
+    clear() {
+        this.cells = {};
+    }
+}
+
+let spatialGrid = new SpatialGrid();
+
 class Bot {
     constructor(id, name, color, speed, bulletSpeed) {
         this.id = id; 
@@ -525,6 +681,8 @@ class Bot {
         this.lastAggressorTime = 0;
         this.reengageUntil = 0;
         this.fakeRetreatUsed = false;
+        this.teleportCooldown = 5000; 
+        this.lastTeleportTime = Date.now();
     }
 
     fireAtPlayers(players) {
@@ -533,7 +691,8 @@ class Bot {
         if (Date.now() - this.spawnTime < 1200) return;
         if (Object.keys(bullets).length > MAX_BULLETS) return;
 
-        const targets = Object.values(players).filter(p => !p.isSpectating);
+        const nearby = spatialGrid.getNearby(this.x, this.y);
+        const targets = nearby.filter(e => e.id in players && !players[e.id].isSpectating);
         if (!targets.length) return;
 
         let nearest = targets.reduce((a, b) =>
@@ -542,11 +701,11 @@ class Bot {
         );
 
         const dist = Math.hypot(nearest.x - this.x, nearest.y - this.y);
-        if (dist > 800 && this.id !== 'bot_eliminator') return;
-        if (dist > 1200) return;
+        if (dist > 1024 && this.id !== 'bot_eliminator') return;
+        if (dist > 1536) return;
         this.angle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
 
-        const fireCooldown =this.id === 'bot_bobby' ? 1500 :this.id === 'bot_rob' ? 700 : 400; 
+        const fireCooldown = this.id === 'bot_bobby' ? 1500 : this.id === 'bot_rob' ? 800 : this.id === 'bot_sleipnir' ? 600 : this.id === 'bot_translocator' ? 500 : 400; 
 
         let burstChance = 0;
 
@@ -559,12 +718,12 @@ class Bot {
             }
         }
 
-        if (dist < 700 && Date.now() - this.lastFireTime > fireCooldown) {
+        if (dist < 896 && Date.now() - this.lastFireTime > fireCooldown) {
             const shots = Math.random() < burstChance ? 4 : 1;
 
             for (let i = 0; i < shots; i++) {
                 const id = 'bot_b' + (++bulletIdCounter);
-                bullets[id] = {id,x: this.x,y: this.y,angle: this.angle + (Math.random() - 0.5) * 0.08,owner: this.id,speed: this.bulletSpeed / 60,born: Date.now()};
+                bullets[id] = {id,x: this.x,y: this.y,angle: this.angle + (Math.random() - 0.5) * 0.08, owner: this.id, speed: this.bulletSpeed / 60, born: Date.now()};
             }
 
             this.lastFireTime = Date.now();
@@ -572,9 +731,9 @@ class Bot {
     }
 
     update(players) {
-        let moveSpeed=this.speed
+        let moveSpeed = this.speed
         if (Date.now() - this.lastRegenTime > 3000) {
-            const maxHp =100;
+            const maxHp = 100;
             const regen = 5;
 
             this.hp = Math.min(maxHp, this.hp + regen);
@@ -615,16 +774,17 @@ class Bot {
         let moveSpeed = Math.max(0.5, this.speed);
         if (this.id === 'bot_eliminator' && now - this.lastFireTime < 600) moveSpeed = Math.max(0.2, moveSpeed * 0.5);
 
-        const targets = Object.values(players).filter(p => !p.isSpectating);
+        const nearby = spatialGrid.getNearby(this.x, this.y);
+        const targets = nearby.filter(e => e.id in players && !players[e.id].isSpectating);
         const hasActiveThreat = targets.length > 0;
-        const retreatThreshold = hasActiveThreat ? 35 : 50;
+        const retreatThreshold = hasActiveThreat ? 20 : 35;
 
         if (this.hp <= retreatThreshold) {
             this.isRetreating = true;
         }
     
         if (this.isRetreating) {
-            moveSpeed = Math.min(this.speed * 3, moveSpeed * 1.5);
+            moveSpeed = FASTSPEED;
 
             if (targets.length) {
                 let primaryTarget = targets[0];
@@ -657,7 +817,7 @@ class Bot {
                 const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
                 this.angle += normalizedDiff * 0.15; 
                 
-                if (!this.hasFiredWhileRetreating && distToPlayer < 400) {
+                if (!this.hasFiredWhileRetreating && distToPlayer < 1152) {
                     const behindShot = angleToPlayer + (Math.random() < 0.5 ? Math.PI / 3 : -Math.PI / 3);
                     const id = 'bot_b' + (++bulletIdCounter);
                     bullets[id] = {
@@ -707,7 +867,7 @@ class Bot {
             } else if (foundPath) {
                 this.x = nx;
                 this.y = ny;
-            } else{
+            } else {
                 let escaped = false;
                 for (let i = 0; i < 4; i++) {
                     const escapeAngle = (i * Math.PI / 2);
@@ -729,7 +889,7 @@ class Bot {
             this.x = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.x));
             this.y = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.y));
 
-            if (this.hp >= 75) {
+            if (this.hp >= 50 && this.isRetreating) {
                 this.isRetreating = false;
                 this.hasFiredWhileRetreating = false;
                 this.lastFireTime = now;
@@ -759,6 +919,90 @@ class Bot {
     
         this.fireAtPlayers(players);
     
+        this.x = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.x));
+        this.y = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.y));
+    }
+    updateTranslocator(players) {
+        if (!this || !this.id || this.id !== 'bot_translocator') {
+            return;
+        }
+        const now = Date.now();
+
+        if (now - this.lastRegenTime > 3000) {
+            const maxHp = 100;
+            const regen = 5;
+            this.hp = Math.min(maxHp, this.hp + regen);
+            this.lastRegenTime = now;
+        }
+
+        if (this.hp <= 35 && now - this.lastTeleportTime > this.teleportCooldown) {
+            const newPos = getBotSafeSpawn();
+            this.x = newPos.x;
+            this.y = newPos.y;
+            this.lastTeleportTime = now;
+            this.teleportCooldown = 4000;
+        }
+
+        let moveSpeed = this.speed;
+
+        const nearby = spatialGrid.getNearby(this.x, this.y);
+        const targets = nearby.filter(e => e.id in players && !players[e.id].isSpectating);
+        if (!targets.length) {
+            this.wanderAngle += (Math.random() - 0.5) * 0.15;
+            const vx = Math.cos(this.wanderAngle);
+            const vy = Math.sin(this.wanderAngle);
+            const len = Math.hypot(vx, vy) || 1;
+
+            let nx = this.x + (vx / len) * moveSpeed;
+            let ny = this.y + (vy / len) * moveSpeed;
+
+            if (!collidesWithWall(nx, ny, ENTITY_RADIUS)) {
+                this.x = nx;
+                this.y = ny;
+            } else {
+                this.wanderAngle += Math.PI;
+            }
+            return;
+        }
+
+        let nearest = targets.reduce((a, b) =>
+            Math.hypot(a.x - this.x, a.y - this.y) <
+            Math.hypot(b.x - this.x, b.y - this.y) ? a : b
+        );
+
+        const dist = Math.hypot(nearest.x - this.x, nearest.y - this.y);
+        if (dist > 1152) return;
+        this.angle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+
+        if (dist < 1024 && Date.now() - this.lastFireTime > 600) {
+            const id = 'bot_b' + (++bulletIdCounter);
+            bullets[id] = {
+                id,
+                x: this.x,
+                y: this.y,
+                angle: this.angle + (Math.random() - 0.5) * 0.1,
+                owner: this.id,
+                speed: this.bulletSpeed / 60,
+                born: Date.now()
+            };
+            this.lastFireTime = Date.now();
+        }
+
+        this.wanderAngle += (Math.random() - 0.5) * 0.08;
+        const vx = Math.cos(this.wanderAngle);
+        const vy = Math.sin(this.wanderAngle);
+        const len = Math.hypot(vx, vy) || 1;
+
+        let nx = this.x + (vx / len) * moveSpeed;
+        let ny = this.y + (vy / len) * moveSpeed;
+
+        if (!collidesWithWall(nx, ny, ENTITY_RADIUS)) {
+            this.x = nx;
+            this.y = ny;
+        } else {
+            this.wanderAngle += Math.PI;
+        }
+
         this.x = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.x));
         this.y = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.y));
     }
@@ -903,6 +1147,11 @@ io.on('connection', socket => {
         const pb = personalBests.get(uuid) || 0;
         socket.emit('personalBestUpdated', {personalBest: pb,isNew: false});
     });
+    socket.on('requestWins', ({ uuid }) => {
+        const winData = playerWins.get(uuid) || { wins: 0, gamesPlayed: 0 };
+        const winrate = winData.gamesPlayed > 0 ? ((winData.wins / winData.gamesPlayed) * 100).toFixed(1) : 0;
+        socket.emit('winsUpdated', { wins: winData.wins, gamesPlayed: winData.gamesPlayed, winrate });
+    });
     socket.on('viewingGameOver', (val) => {
         const p = players[socket.id];
         if (!p) return;
@@ -1029,15 +1278,26 @@ setInterval(() => {
             matchPhase = 'ended';
             matchTimer = 0;
 
+            const results = buildFinalResults();
+            const topScore = results.length > 0 ? results[0].score : 0;
+
             Object.values(players).forEach(p => {
                 io.to(p.id).emit('finalScore', { score: p.score });
                 const res = maybeSavePB(p);
                 io.to(p.id).emit('personalBestUpdated', { personalBest: res.personalBest, isNew: res.isNew });
+
+                const uuid = p.uuid;
+                if (uuid) {
+                    const won = p.score === topScore && p.score > 0;
+                    const winsData = maybeSaveWin(p, won);
+                    const winrate = winsData.gamesPlayed > 0 ? ((winsData.wins / winsData.gamesPlayed) * 100).toFixed(1) : 0;
+                
+                    io.to(p.id).emit('winsUpdated', {wins: winsData.wins, gamesPlayed: winsData.gamesPlayed, winrate});
+                }
             });
 
             try {
-                const results = buildFinalResults();
-                io.emit('finalResults', { results});
+                io.emit('finalResults', {results});
             } catch (e) {
                 console.error('Failed to build/emit finalResults:', e);
             }
@@ -1052,6 +1312,7 @@ setInterval(() => {
             }, 15000);
         }
     }
+
     const activePlayersArray = Object.values(players).filter(p => !p.isSpectating);
     NET_TICK = activePlayersArray.length > 0 ? NET_TICK_ACTIVE : NET_TICK_IDLE;
 
@@ -1078,6 +1339,7 @@ setInterval(() => {
                 p.stamina = Math.min(100, p.stamina + 0.6);
             }
         }
+
         if (p.isSpectating) {
             const sx = Math.abs(dx) > 0.01 ? dx : 0;
             const sy = Math.abs(dy) > 0.01 ? dy : 0;
@@ -1107,19 +1369,29 @@ setInterval(() => {
                 p.y = ny;
             }
         }
+
         p.angle = input.angle;
     });
+    
     botAccumulator += delta;
+
     if (botAccumulator >= 1 / 30) {
+        spatialGrid.clear();
+
+        Object.values(players).forEach(p => spatialGrid.insert(p));
+        Object.values(bots).forEach(b => spatialGrid.insert(b));
+    
         Object.values(bots).forEach(b => {
             if (b.retired) return;
             if (b.id === 'bot_eliminator') b.updateAdvanced(players);
+            else if (b.id === 'bot_translocator') b.updateTranslocator(players);
             else b.update(players);
         });
+        
         botAccumulator = 0;
     }
+    
     bulletAccumulator += delta;
-
     const STEP = 1 / 15;
     let iterations = Math.floor(bulletAccumulator / STEP);
     const MAX_ITERATIONS_PER_TICK = 5; 
@@ -1144,9 +1416,13 @@ setInterval(() => {
           delete bullets[b.id];
           return;
         }
-            const livePlayers = Object.values(players).filter(p => !p.isSpectating);
-            const liveBots = Object.values(bots).filter(b => !b.retired);
-            for (const target of [...livePlayers, ...liveBots]) {
+            const nearby = spatialGrid.getNearby(b.x, b.y);
+            const targets = nearby.filter(e => {
+                if (e.retired) return false;
+                if ('lives' in e && e.isSpectating) return false;
+                return true;
+            });
+            for (const target of targets) {
                 if (Math.abs(target.x - b.x) > 40 || Math.abs(target.y - b.y) > 40) continue;
                 if (target.id === b.owner ||target.isSpectating || Date.now() < target.spawnProtectedUntil || target.retired || target.hp<=0) continue;
                 if (!target || target.viewingGameOver || target.waitingForRematch) continue;
@@ -1161,7 +1437,7 @@ setInterval(() => {
                 }
                 const shooter = players[b.owner] || bots[b.owner];
                 if (dx * dx + dy * dy < HIT_RADIUS * HIT_RADIUS) {
-                    if (target.id === 'bot_rob') {
+                    if (target.id === 'bot_rob' || target.id === 'bot_sleipnir') {
                         const now = Date.now();
                         if (now - target.lastHitTime < 250) target.hitChain++;
                         else target.hitChain = 0;
@@ -1192,6 +1468,13 @@ setInterval(() => {
                         }
                     }
 
+                    if (target.id === 'bot_translocator') {
+                        const now = Date.now();
+                        if (now - target.lastHitTime < 300) target.hitChain++;
+                        else target.hitChain = 0;
+                        target.lastHitTime = now;
+                    }
+
                     target.hp -= damage * multiplier;
                     target.hp = Math.max(0, target.hp);
 
@@ -1216,9 +1499,12 @@ setInterval(() => {
                                 if (!target.id.toString().includes('bot')) pointsAwarded = b.owner === 'bot_bobby' ? 6 : 3;
                             } else {
                                 if (target.id === 'bot_bobby') pointsAwarded = 1;
-                                else if (target.id === 'bot_eliminator') pointsAwarded = 6;
+                                else if (target.id === 'bot_eliminator') pointsAwarded = 9;
+                                else if (target.id === 'bot_translocator') pointsAwarded = 6;
+                                else if (target.id === 'bot_sleipnir') pointsAwarded = 4;
                                 else pointsAwarded = 3;
                             }
+
                             shooter.score += pointsAwarded;
                         }
 
@@ -1247,9 +1533,12 @@ setInterval(() => {
                         } else {
                             if (shouldRespawnBot(target.id)) {
                                 const respawn = getBotSafeSpawn();
-                                Object.assign(target, {hp: 100,x: respawn.x,y: respawn.y,spawnTime: Date.now(),justDied:false});
+                                Object.assign(target, {hp: 100, x: respawn.x, y: respawn.y, spawnTime: Date.now(), justDied:false});
                                 if (target.id === 'bot_eliminator') {
-                                    io.emit('EliminatorRespawned', {id: 'bot_eliminator', name: 'Eliminator', timestamp: Date.now()});
+                                    io.emit('EliminatorRespawned', {id: 'bot_eliminator', name: 'The Eliminator', timestamp: Date.now()});
+                                }
+                                if (target.id === 'bot_translocator') {
+                                    io.emit('TranslocatorRespawned', {id: 'bot_translocator', name: 'The Translocator', timestamp: Date.now()});
                                 }
                             } else {
                                 target.retired=true;
@@ -1257,8 +1546,11 @@ setInterval(() => {
                                     target.retireAnnounced = true;
                                     if (target.id === 'bot_eliminator') {
                                         io.emit('EliminatorRetired', 'The Eliminator has fallen…');
-                                    } else if (target.id === 'bot_rob') {
-                                        io.emit('RobRetired', 'Rob has left the arena.');
+                                    } else if (target.id === 'bot_sleipnir') {
+                                        io.emit('sleipnirRetired', 'The Sleipnir has left the arena.');
+                                    }
+                                    else if (target.id === 'bot_translocator') {
+                                        io.emit('TranslocatorRetired', 'The Translocator has gone off border');
                                     }
                                 }
                             }
@@ -1294,34 +1586,39 @@ setInterval(() => {
 }, TICK_RATE);
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, saving personal bests to disk...');
+  console.log('SIGINT received, saving personal bests & wins to disk...');
   if (pbWriteTimer) {
     clearTimeout(pbWriteTimer);
     pbWriteTimer = null;
   }
+  if (winsWriteTimer) {
+    clearTimeout(winsWriteTimer);
+    winsWriteTimer = null;
+  }
   try { persistPBsSyncAtomic(); } catch (e) { console.error('Failed saving PBs during SIGINT:', e); }
+  try { persistWinsSyncAtomic(); } catch (e) { console.error('Failed saving wins during SIGINT:', e); }
   process.exit(0);
 });
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, saving personal bests to disk...');
+  console.log('SIGTERM received, saving personal bests & wins to disk...');
   persistPBsSyncAtomic();
+  persistWinsSyncAtomic();
   process.exit(0);
 });
 process.on('beforeExit', () => {
   persistPBsSyncAtomic();
+  persistWinsSyncAtomic();
 });
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception, flushing personal bests to disk:', err);
+  console.error('Uncaught exception, flushing personal bests & wins to disk:', err);
   try { persistPBsSyncAtomic(); } catch (e) { console.error('Failed saving PBs during uncaughtException:', e); }
+  try { persistWinsSyncAtomic(); } catch (e) { console.error('Failed saving wins during uncaughtException:', e); }
   process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled rejection, flushing personal bests to disk:', reason);
+  console.error('Unhandled rejection, flushing personal bests & wins to disk:', reason);
   try { persistPBsSyncAtomic(); } catch (e) { console.error('Failed saving PBs during unhandledRejection:', e); }
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).send('ok');
+  try { persistWinsSyncAtomic(); } catch (e) { console.error('Failed saving wins during unhandledRejection:', e); }
 });
 
 server.listen(PORT, '0.0.0.0', () => { 

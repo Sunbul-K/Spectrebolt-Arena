@@ -4,8 +4,9 @@ node_modules
 # Environment Variables
 .env
 
-# Local PBs for Testing
+# Local storage for Testing
 personal_bests.json
+wins.json
 
 # To find what caused false positives within name filter
 false-positives-test.js

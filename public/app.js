@@ -8,47 +8,51 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const lerp = (a, b, t) => a + (b - a) * t;
-const SHOOT_INTERVAL=100;
-const isIOS = navigator.userAgentData? navigator.userAgentData.platform === 'iOS': /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
-const MAX_DIST = 50;
-const DEADZONE = 6;
-const BASE_VIEW_SIZE = 900;
-const leaderboardScroll= document.getElementById('leaderboardScroll');
 
+let matchPhase = 'running';
+let matchTimer = 1200;
 let isJoining = false;
-let isRematching = false;
-let pbSavedThisMatch = false;
-let rematchCountdownInterval = null;
-let gameOverSince = null;
-let lastMiniUpdate = 0;
-let myId=null;
-let mapSize=[];
+
+let myId = null;
+let mapSize = 0;
 let walls = [];
 let players = {};
 let bots = {};
 let bullets = {};
-let matchTimer = 1200;
+
+let pbSavedThisMatch = null;
+let personalBest = null;
+
+const SHOOT_INTERVAL = 100;
 let keys = {};
 let mouseAngle = 0;
 let isMobileSprinting = false;
-let joy = { active: false, startX: 0, startY: 0, id: null, x:0, y:0 };
+let joy = { active: false, startX: 0, startY: 0, id: null, x:0, y:0};
 let shootJoy = {active:false, x:0, y:0, id:null}
-let camX=0; 
-let camY=0;
+let camX = 0; 
+let camY = 0;
 let moveTouchId = null;
-let personalBest = null;
 let lastInput = null;
-let lastShootTime=0;
+let lastShootTime = 0;
 let spaceHeld = false;
 let lastSpaceShot = 0;
+
+const leaderboardScroll = document.getElementById('leaderboardScroll');
 let leaderboardEntities = {}; 
+
 let rematchRequested = false;
+let isRematching = false;
 let isGameOverLocked = false;
+let isViewingGameOver = false;
+let finalResults = [];
+let gameOverSince = null;
+
+const isIOS = navigator.userAgentData? navigator.userAgentData.platform === 'iOS': /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
+const MAX_DIST = 50;
+const DEADZONE = 6;
+const BASE_VIEW_SIZE = 900;
 let cachedStandalone = null;
 let cachedHandheld = null;
-let isViewingGameOver = false;
-let matchPhase = 'running';
-let finalResults = [];
         
 function isHandheldLike() {
     const mq = window.matchMedia;
@@ -215,7 +219,7 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', hand
 const standaloneMQ = window.matchMedia('(display-mode: standalone)');
 standaloneMQ.addEventListener('change', handleResizeDebounced);
 
-window.addEventListener('load', onResize);
+window.addEventListener('load', () => onResize());
 
 window.addEventListener('beforeunload', () => {
     myId = null;
@@ -224,12 +228,25 @@ window.addEventListener('beforeunload', () => {
     bullets = {};
 });
 
-document.getElementById('rematchBtn').onclick = () => {
-    if (isRematching) return;
-    isRematching = true;
+const shareBtn = document.getElementById('shareScoreBtn');
+if (shareBtn) {
+    shareBtn.onclick = () => {
+        const me = players[myId];
+        if (!me) return;
+        const isWin = finalResults.length && me.score === finalResults[0].score;
+        shareScore(me.score, isWin);
+    };
+}
 
-    socket.emit('rematch');
-    document.getElementById('rematchBtn').disabled=true;
+const rematchBtn = document.getElementById('rematchBtn');
+if(rematchBtn){
+    rematchBtn.onclick = () => {
+        if (isRematching) return;
+        isRematching = true;
+
+        socket.emit('rematch');
+        rematchBtn.disabled=true;
+    }
 };
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -241,6 +258,30 @@ window.addEventListener('DOMContentLoaded', () => {
         personalBest = pbNum;
         personalBestDisplay.innerText = storedPb !== null ? `PERSONAL BEST: ${storedPb}` : 'PERSONAL BEST: 0';
     }
+
+    const sharePlatformBtns = document.querySelectorAll('.share-platform-btn');
+    sharePlatformBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const platform = btn.getAttribute('data-platform');
+            handleSharePlatform(platform);
+        });
+    });
+
+    const shareCopyBtn = document.getElementById('shareCopyBtn');
+    if (shareCopyBtn) {
+        shareCopyBtn.addEventListener('click', () => {
+            copyToClipboard(window.currentFullShareText);
+            shareCopyBtn.textContent = 'COPIED!';
+            setTimeout(() => {
+                shareCopyBtn.textContent = 'COPY TEXT TO CLIPBOARD';
+            }, 2000);
+        });
+    }
+
+    const storedWins = localStorage.getItem('wins') || 0;
+    const storedGames = localStorage.getItem('gamesPlayed') || 0;
+    const storedWinrate = localStorage.getItem('winrate') || 0;
+    updateStatsDisplay(Number(storedWins), Number(storedGames), Number(storedWinrate));
 
     const nameInput = document.getElementById('nameInput');
 
@@ -310,8 +351,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const sprintBtn = document.getElementById('sprintBtn');
     if (sprintBtn) {
-        sprintBtn.addEventListener('touchstart', e => { e.preventDefault(); isMobileSprinting = true; }, {passive : false});
-        sprintBtn.addEventListener('touchend', e => { e.preventDefault(); isMobileSprinting = false; }, {passive : false});
+        sprintBtn.addEventListener('touchstart', e => { e.preventDefault(); isMobileSprinting = true; });
+        sprintBtn.addEventListener('touchend', e => { e.preventDefault(); isMobileSprinting = false; });
     }
 
     window.addEventListener('keydown', e => {
@@ -342,6 +383,100 @@ window.addEventListener('DOMContentLoaded', () => {
     clampLeaderboardToTop5();
 });
 
+function updateStatsDisplay(wins = 0, gamesPlayed = 0, winrate = 0) {
+    const statsEl = document.getElementById('statsDisplay');
+    if (statsEl) {
+        statsEl.innerHTML = `
+            <div style="font-size: 12px; color: #0f4;">
+                WINS: ${wins} | GAMES: ${gamesPlayed} | W/L: ${winrate}%
+            </div>
+        `;
+    }
+}
+
+function shareScore(score, isWin = false) {
+    const text = isWin 
+        ? `I WON in Spectrebolt Arena with ${score} points! Can you beat that? 🔥`
+        : `I scored ${score} points in Spectrebolt Arena! Join the battle: `;
+
+    window.currentShareText = text;
+    window.currentShareURL = 'https://spectrebolt-arena-9xk4.onrender.com';
+    window.currentFullShareText = `${text} ${window.currentShareURL}`;
+
+    openShareModal();
+}
+function openShareModal() {
+    const shareModal = document.getElementById('shareModal');
+    if (shareModal) {
+        shareModal.style.display = 'flex';
+    }
+}
+function closeShareModal() {
+    const shareModal = document.getElementById('shareModal');
+    if (shareModal) {
+        shareModal.style.display = 'none';
+    }
+}
+function copyToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+}
+function openPopup(url) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+function handleSharePlatform(platform) {
+    const text = window.currentShareText || '';
+    const url = window.currentShareURL || 'https://spectrebolt-arena-9xk4.onrender.com';
+    const fullText = window.currentFullShareText || '';
+
+    switch(platform) {
+        case 'whatsapp':
+            openPopup(`https://wa.me/?text=${encodeURIComponent(fullText)}`);
+            break;
+        case 'telegram':
+            openPopup(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+            break;
+        case 'facebook':
+            openPopup(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`);
+            break;
+        case 'x':
+            openPopup(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`);
+            break;
+        case 'instagram':
+            copyToClipboard(fullText);
+            const msg = document.createElement('div');
+            msg.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #1b1b1b;
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                z-index: 9999;
+                text-align: center;
+            `;
+            msg.innerHTML = 'Text copied! Open Instagram and paste in DM or Story.';
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
+            break;
+    }
+}
+
 const tryReload = () => {if (!players[myId]) location.reload();};
 
 canvas.addEventListener('click', tryReload);
@@ -349,6 +484,10 @@ canvas.addEventListener('touchstart', tryReload, { passive: true });
 
 socket.on('init', d => {
     if (!d || !d.id) return;
+    if (d && socket.playerUUID) {
+        socket.emit('requestPB', { uuid: socket.playerUUID });
+        socket.emit('requestWins', { uuid: socket.playerUUID });
+    }
     isJoining = false;
     pbSavedThisMatch = false;
 
@@ -452,15 +591,14 @@ socket.on('matchReset', (data) => {
         matchPhase = data.matchPhase || 'running';
         matchTimer = typeof data.matchTimer === 'number' ? data.matchTimer : matchTimer;
     } catch (e) {}
-
+  
     isGameOverLocked = false;
     isViewingGameOver = false;
     finalResults = [];
-  
-    const gameOverEl = document.getElementById('gameOver');
 
-  
+    const gameOverEl = document.getElementById('gameOver');
     if (gameOverEl) gameOverEl.style.display = 'none';
+
     try { socket.emit('viewingGameOver', false); } catch (e) {}
 });
 socket.on('killEvent', (data) => {
@@ -468,7 +606,7 @@ socket.on('killEvent', (data) => {
     if (!feed) return;
     const msg = document.createElement('div');
     msg.className='kill-msg';
-    msg.innerHTML = `<span style="color:var(--accent)">${data.shooter}</span> killed ${data.victim}`;
+    msg.innerHTML = `<span style="color:var(--accent)">${data.shooter}</span> has killed ${data.victim}`;
     feed.appendChild(msg);
     if (feed.children.length > 5) {
         feed.removeChild(feed.firstChild);
@@ -476,8 +614,27 @@ socket.on('killEvent', (data) => {
 
     setTimeout(() => msg.remove(), 4000);
 });
+socket.on('winsUpdated', (data) => {
+    updateStatsDisplay(data.wins, data.gamesPlayed, data.winrate);
+    try {
+        localStorage.setItem('wins', data.wins);
+        localStorage.setItem('gamesPlayed', data.gamesPlayed);
+        localStorage.setItem('winrate', data.winrate);
+    } catch (e) {}
+});
 socket.on('finalResults', data => {
+    matchPhase = 'ended';
     finalResults = Array.isArray(data?.results) ? data.results : [];
+
+    const me = players[myId];
+    if (me && finalResults.length > 0) {
+        const topScore = finalResults[0].score;
+        if (me.score === topScore && me.score > 0) {
+            
+        } else {
+            
+        }
+    }
 });
 socket.on('state', s => {
     matchTimer = s.matchTimer;
@@ -562,12 +719,22 @@ socket.on('state', s => {
     clampLeaderboardToTop5();
 });
 socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });
-socket.on('RobSpawned', () => {
-    const box = document.getElementById('robNotice');
+socket.on('TranslocatorSpawned', () => {
+    const box = document.getElementById('translocatorNotice');
     const msg = document.createElement('div');
 
-    msg.className = 'rob-msg';
-    msg.textContent = 'Rob has joined the arena';
+    msg.className = 'translocator-msg';
+    msg.textContent = "The Translocator's been deployed..";
+
+    box.appendChild(msg);
+    setTimeout(() => msg.remove(), 4000);
+});
+socket.on('sleipnirSpawned', () => {
+    const box = document.getElementById('sleipnirNotice');
+    const msg = document.createElement('div');
+
+    msg.className = 'sleipnir-msg';
+    msg.textContent = 'The Sleipnir has appeared..';
 
     box.appendChild(msg);
     setTimeout(() => msg.remove(), 4000);
@@ -582,6 +749,16 @@ socket.on('EliminatorSpawned', () => {
     box.appendChild(msg);
     setTimeout(() => msg.remove(), 4000);
 });
+socket.on('TranslocatorRespawned', () => {
+    const box = document.getElementById('translocatorNotice');
+    const msg = document.createElement('div');
+
+    msg.className = 'translocator-msg';
+    msg.textContent = 'The Translocator has found his way back..';
+
+    box.appendChild(msg);
+    setTimeout(() => msg.remove(), 4000);
+});
 socket.on('EliminatorRespawned', () => {
     const box = document.getElementById('eliminatorNotice');
     const msg = document.createElement('div');
@@ -592,12 +769,22 @@ socket.on('EliminatorRespawned', () => {
     box.appendChild(msg);
     setTimeout(() => msg.remove(), 4000);
 });
-socket.on('RobRetired', () => {
-    const box = document.getElementById('robNotice');
+socket.on('TranslocatorRetired', () => {
+    const box = document.getElementById('translocatorNotice');
     const msg = document.createElement('div');
 
-    msg.className = 'rob-msg';
-    msg.textContent = 'Rob has left the arena.';
+    msg.className = 'translocator-msg';
+    msg.textContent = 'The Translocator has gone off border.';
+
+    box.appendChild(msg);
+    setTimeout(() => msg.remove(), 4000);
+});
+socket.on('sleipnirRetired', () => {
+    const box = document.getElementById('sleipnirNotice');
+    const msg = document.createElement('div');
+
+    msg.className = 'sleipnir-msg';
+    msg.textContent = 'The Sleipnir has been officially eliminated.';
 
     box.appendChild(msg);
     setTimeout(() => msg.remove(), 4000);
@@ -744,6 +931,7 @@ const miniCanvas = document.getElementById('minimap-canvas');
 const miniCtx = miniCanvas.getContext('2d');
 const mapToggle = document.getElementById('mapToggle');
 const miniContainer = document.getElementById('minimap-container');
+let lastMiniUpdate = 0;
 
 mapToggle.onclick = () => {
     const hidden = miniContainer.style.display === 'none';
