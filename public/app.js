@@ -10,7 +10,7 @@ const ctx = canvas.getContext('2d');
 const lerp = (a, b, t) => a + (b - a) * t;
 
 let matchPhase = 'running';
-let matchTimer = 1200;
+let matchTimer = 15*60;
 let isJoining = false;
 
 let myId = null;

@@ -99,26 +99,26 @@ let walls = generateWalls(14);
 
 const activeRematches = new Set();
 let matchPhase = 'running';
-let matchTimer = 15 * 60;
+let matchTimer = 15*60;
 let resetLock = false;
 let matchResetTimeout = null;
 
 /*  Note: 
         Some bans are intentionally broad to prevent common abuse patterns:
-            - mother/father/sister/brother in Arabic & English: harassment & sexual taunts
-            - twin/tower: Twin Towers references
-            - nigg: we know why
+            - Mother/Father/Sister/Brother in Arabic & English: harassment & sexual taunts
+            - Twin/Tower: Twin Towers references
             - Names of religions & holy books: prevent religiophobia of any kind 
+            - Good/Bad: disallow things like 'hergoodboy', etc.
 */
 
-const BANNED_WORDS = ['fuck','nicker','hilter','puffd','pdidd','kink','3aha','ghabi','mother','beid','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','segs','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitu','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','manyak','manyaak','lick','kiss','titt'];
+const BANNED_WORDS = ['fuck','smoke','smoki','cigar','dukhan','nicker','la3n','hilter','sharmt','shrmoot','niga','yel3','ikht','yil3','dik','dih','dicak','dicac','puffd','pdidd','kink','3aha','ghabi','mother','beid','father','sister','brother','kids','kys','jerk','terror','muslim','islam','quran','bible','hindu','buddh','christiani','jew','judaism','tower','torah','athei','agnos','god','talmud','vishnu','shiva','sikh','corpse','rotten','jork','kals','kalb','good','bad','laden','obama','biden','bush','boxers','panti','sarm','madaf','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','segs','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'diddle', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','hog','pussy','twin','9/11','murder','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitu','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','manyak','manyaak','lick','kiss','titt'];
 const WORD_ONLY_BANS = ['ass','tit','cum','rim'];
 
-const SAFE_SUBSTRING_BANS = ['touch','nicker','hilter','puffd','pdidd','manyak','manyaak','kiss','diddle','racial','prostitu','slave','horny','epste','slut','cunt','cock','israel','demon','terror','sister','quran','buddh','bible','hindu','athei','asshole','beid','3aha','ghabi','pedo','hog','cocaine','tahar','boob','baby','kids','suck','bend','titt','kalb','dork','nut','egg','twat','akh','abo','umm','anus','oral','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','kalb','good','god','bad','bush','butt','muslim','islam','kys','like','teez','groom','pimp','khara','zib','nazi','diddy','ejac','coke','dealer','meat','babe','maniac','manyook','kus','kids','piss','jew','segs','sex','anal','khara','ukht','vagin','groom'];
+const SAFE_SUBSTRING_BANS = ['touch','nicker','sharmt','shrmoot','niga','yel3','ikht','yil3','dih','dicak','dikac','dicac','hilter','puffd','pdidd','manyak','manyaak','kiss','diddle','racial','prostitu','slave','horny','epste','slut','cunt','cock','israel','demon','terror','sister','quran','buddh','bible','hindu','athei','asshole','beid','3aha','ghabi','pedo','hog','cocaine','tahar','boob','baby','kids','suck','bend','titt','kalb','dork','nut','egg','twat','akh','abo','umm','anus','oral','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod','madaf','biden','obama','laden','kals','good','god','bad','bush','butt','muslim','islam','kys','like','teez','groom','pimp','khara','zib','nazi','diddy','ejac','coke','dealer','meat','babe','maniac','manyook','kus','kids','piss','jew','segs','sex','anal','khara','ukht','vagin','groom'];
 
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => !WORD_ONLY_BANS.includes(w));
 
-const RESERVED = ['bobby','rob','the eliminator','the translocator','the sleipnir','sleipnir','translocator','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev','me',];
+const RESERVED = ['bobby','rob','the eliminator','the translocator','the sleipnir','sleipnir','the sliepnir','sliepnir','translocator','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer','dev','me',];
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
@@ -149,9 +149,6 @@ const leetmap = {
 function stripVowels(str) {
     return str.replace(/[aeiouy]/g, '');
 }
-function reverseString(str) {
-    return str.split('').reverse().join('');
-}
 function containsBannedWord(name) {
     const lower = name.toLowerCase();
     let variants = new Set([lower]);
@@ -173,7 +170,6 @@ function containsBannedWord(name) {
     const extraVariants = new Set();
     for (const v of variants) {
         extraVariants.add(v.replace(/(.)\1+/g, '$1')); 
-        extraVariants.add(reverseString(v)); 
     }
     variants = new Set([...variants, ...extraVariants]);
 
@@ -777,14 +773,14 @@ class Bot {
         const nearby = spatialGrid.getNearby(this.x, this.y);
         const targets = nearby.filter(e => e.id in players && !players[e.id].isSpectating);
         const hasActiveThreat = targets.length > 0;
-        const retreatThreshold = hasActiveThreat ? 20 : 35;
+        const retreatThreshold = hasActiveThreat ? 30 : 40;
 
         if (this.hp <= retreatThreshold) {
             this.isRetreating = true;
         }
     
         if (this.isRetreating) {
-            moveSpeed = FASTSPEED;
+            moveSpeed = FASTSPEED - 0.7;
 
             if (targets.length) {
                 let primaryTarget = targets[0];
@@ -889,7 +885,7 @@ class Bot {
             this.x = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.x));
             this.y = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.y));
 
-            if (this.hp >= 50 && this.isRetreating) {
+            if (this.hp >= 60 && this.isRetreating) {
                 this.isRetreating = false;
                 this.hasFiredWhileRetreating = false;
                 this.lastFireTime = now;
@@ -1309,7 +1305,7 @@ setInterval(() => {
                     resetMatch();
                 }
                 matchResetTimeout = null;
-            }, 15000);
+            }, 10000);
         }
     }
 
