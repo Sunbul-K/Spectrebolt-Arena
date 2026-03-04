@@ -1,4 +1,4 @@
-# Spectrebolt Arena 
+# Spectrebolt Arena - Online Multiplayer Shooter
 A fast-paced 2D top-down multiplayer shooter game built using **Node.js**, **Socket.io** and **HTML5 Canvas**!
 
 ---
