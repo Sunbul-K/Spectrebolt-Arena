@@ -278,11 +278,6 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const storedWins = localStorage.getItem('wins') || 0;
-    const storedGames = localStorage.getItem('gamesPlayed') || 0;
-    const storedWinrate = localStorage.getItem('winrate') || 0;
-    updateStatsDisplay(Number(storedWins), Number(storedGames), Number(storedWinrate));
-
     const nameInput = document.getElementById('nameInput');
 
     if (nameInput) {
@@ -383,17 +378,6 @@ window.addEventListener('DOMContentLoaded', () => {
     clampLeaderboardToTop5();
 });
 
-function updateStatsDisplay(wins = 0, gamesPlayed = 0, winrate = 0) {
-    const statsEl = document.getElementById('statsDisplay');
-    if (statsEl) {
-        statsEl.innerHTML = `
-            <div style="font-size: 12px; color: #0f4;">
-                WINS: ${wins} | GAMES: ${gamesPlayed} | W/L: ${winrate}%
-            </div>
-        `;
-    }
-}
-
 function shareScore(score, isWin = false) {
     const text = isWin 
         ? `I WON in Spectrebolt Arena with ${score} points! Can you beat that? 🔥`
@@ -486,7 +470,6 @@ socket.on('init', d => {
     if (!d || !d.id) return;
     if (d && socket.playerUUID) {
         socket.emit('requestPB', { uuid: socket.playerUUID });
-        socket.emit('requestWins', { uuid: socket.playerUUID });
     }
     isJoining = false;
     pbSavedThisMatch = false;
@@ -613,14 +596,6 @@ socket.on('killEvent', (data) => {
     }
 
     setTimeout(() => msg.remove(), 4000);
-});
-socket.on('winsUpdated', (data) => {
-    updateStatsDisplay(data.wins, data.gamesPlayed, data.winrate);
-    try {
-        localStorage.setItem('wins', data.wins);
-        localStorage.setItem('gamesPlayed', data.gamesPlayed);
-        localStorage.setItem('winrate', data.winrate);
-    } catch (e) {}
 });
 socket.on('finalResults', data => {
     matchPhase = 'ended';
