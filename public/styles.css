@@ -99,14 +99,6 @@ body {
     font-size: 16px;
     text-align: right;
 }
-#statsDisplay {
-    position: absolute;
-    top: 35px;
-    left: 15px;
-    color: #0f4;
-    font-weight: bold;
-    font-size: 12px;
-}
 #shareScoreBtn {
     background:#444;
     color:white;
