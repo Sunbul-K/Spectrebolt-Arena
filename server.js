@@ -82,13 +82,10 @@ const JOIN_CUTOFF_SECONDS = 5*60;
 const JOIN_LIMITS = new Map();
 
 const PB_FILE = process.env.PB_FILE || path.join(__dirname, 'personal_bests.json');
-const WINS_FILE = process.env.WINS_FILE || path.join(__dirname, 'wins.json');
-const playerWins = new Map();
 const personalBests = new Map();
 const ACTIVE_PLAYER_UUIDS = new Set();
 const PLAYER_UUID_TO_SOCKET = new Map();
 let pbWriteTimer = null;
-let winsWriteTimer = null;
 
 const MAP_SIZE = 2560;
 const totalObjects = Object.keys(players).length + Object.keys(bots).length;
@@ -210,77 +207,6 @@ function isNameTaken(name) {
         p.name && p.name.toLowerCase() === normalized
     );
 }
-
-function loadWinsFromDisk() {
-    try {
-        if (!fs.existsSync(WINS_FILE)) {
-            console.log('Wins file does not exist at', WINS_FILE);
-            return;
-        }
-        const raw = fs.readFileSync(WINS_FILE, 'utf8');
-        const obj = JSON.parse(raw || '{}');
-        for (const [k, v] of Object.entries(obj)) {
-            playerWins.set(k, { wins: Number(v.wins) || 0, gamesPlayed: Number(v.gamesPlayed) || 0 });
-        }
-        console.log(`Loaded ${playerWins.size} win record(s) from disk (${WINS_FILE})`);
-    } catch (e) {
-        console.warn('Failed to load wins from disk:', e);
-    }
-}
-
-function persistWinsSyncAtomic() {
-    const obj = Object.fromEntries(playerWins);
-    for (const [k, v] of playerWins.entries()) {
-        obj[k] = { wins: v.wins, gamesPlayed: v.gamesPlayed };
-    }
-    try {
-        const tmp = WINS_FILE + '.tmp';
-        fs.writeFileSync(tmp, JSON.stringify(obj), { encoding: 'utf8' });
-        fs.renameSync(tmp, WINS_FILE);
-        console.log(`Saved wins to ${WINS_FILE}; ${playerWins.size} records in total (sync)`);
-    } catch (e) {
-        console.warn('Failed to write wins file to local disk:', e);
-    }
-}
-function persistWinsAsyncDebounced(delay = 1000) {
-    if (winsWriteTimer) clearTimeout(winsWriteTimer);
-    winsWriteTimer = setTimeout(async () => {
-        winsWriteTimer = null;
-        const obj = Object.fromEntries(playerWins);
-        for (const [k, v] of playerWins.entries()) {
-            obj[k] = { wins: v.wins, gamesPlayed: v.gamesPlayed };
-        }
-        const tmp = WINS_FILE + '.tmp';
-        try {
-            await fs.promises.writeFile(tmp, JSON.stringify(obj), 'utf8');
-            await fs.promises.rename(tmp, WINS_FILE);
-            console.log(`Saved wins to ${WINS_FILE}; ${playerWins.size} records in total (async)`);
-        } catch (e) {
-            console.warn('Async wins write failed, falling back to sync:', e);
-            try { persistWinsSyncAtomic(); } catch (err) { console.error('Fallback persist failed:', err); }
-        }
-    }, delay);
-}
-function maybeSaveWin(p, won) {
-    if (!p || !p.uuid) {
-        console.warn('maybeSaveWin called with missing player or uuid', !!p, p?.id);
-        return { wins: 0, gamesPlayed: 0 };
-    }
-
-    let current = playerWins.get(p.uuid) || { wins: 0, gamesPlayed: 0 };
-    current.gamesPlayed++;
-    
-    if (won) {
-        current.wins++;
-    }
-    
-    playerWins.set(p.uuid, current);
-    persistWinsAsyncDebounced(100);
-    
-    console.log(`Game recorded: uuid=${p.uuid} wins=${current.wins} games=${current.gamesPlayed}`);
-    return current;
-}
-loadWinsFromDisk();
 
 function loadPersonalBestsFromDisk() {
   try {
@@ -1143,11 +1069,6 @@ io.on('connection', socket => {
         const pb = personalBests.get(uuid) || 0;
         socket.emit('personalBestUpdated', {personalBest: pb,isNew: false});
     });
-    socket.on('requestWins', ({ uuid }) => {
-        const winData = playerWins.get(uuid) || { wins: 0, gamesPlayed: 0 };
-        const winrate = winData.gamesPlayed > 0 ? ((winData.wins / winData.gamesPlayed) * 100).toFixed(1) : 0;
-        socket.emit('winsUpdated', { wins: winData.wins, gamesPlayed: winData.gamesPlayed, winrate });
-    });
     socket.on('viewingGameOver', (val) => {
         const p = players[socket.id];
         if (!p) return;
@@ -1281,15 +1202,6 @@ setInterval(() => {
                 io.to(p.id).emit('finalScore', { score: p.score });
                 const res = maybeSavePB(p);
                 io.to(p.id).emit('personalBestUpdated', { personalBest: res.personalBest, isNew: res.isNew });
-
-                const uuid = p.uuid;
-                if (uuid) {
-                    const won = p.score === topScore && p.score > 0;
-                    const winsData = maybeSaveWin(p, won);
-                    const winrate = winsData.gamesPlayed > 0 ? ((winsData.wins / winsData.gamesPlayed) * 100).toFixed(1) : 0;
-                
-                    io.to(p.id).emit('winsUpdated', {wins: winsData.wins, gamesPlayed: winsData.gamesPlayed, winrate});
-                }
             });
 
             try {
@@ -1582,39 +1494,30 @@ setInterval(() => {
 }, TICK_RATE);
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, saving personal bests & wins to disk...');
+  console.log('SIGINT received, saving personal bests to disk...');
   if (pbWriteTimer) {
     clearTimeout(pbWriteTimer);
     pbWriteTimer = null;
   }
-  if (winsWriteTimer) {
-    clearTimeout(winsWriteTimer);
-    winsWriteTimer = null;
-  }
   try { persistPBsSyncAtomic(); } catch (e) { console.error('Failed saving PBs during SIGINT:', e); }
-  try { persistWinsSyncAtomic(); } catch (e) { console.error('Failed saving wins during SIGINT:', e); }
   process.exit(0);
 });
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, saving personal bests & wins to disk...');
-  persistPBsSyncAtomic();
-  persistWinsSyncAtomic();
+  console.log('SIGTERM received, saving personal bests to disk...');
+  persistPBsSyncAtomic();;
   process.exit(0);
 });
 process.on('beforeExit', () => {
   persistPBsSyncAtomic();
-  persistWinsSyncAtomic();
 });
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception, flushing personal bests & wins to disk:', err);
+  console.error('Uncaught exception, flushing personal bests to disk:', err);
   try { persistPBsSyncAtomic(); } catch (e) { console.error('Failed saving PBs during uncaughtException:', e); }
-  try { persistWinsSyncAtomic(); } catch (e) { console.error('Failed saving wins during uncaughtException:', e); }
   process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled rejection, flushing personal bests & wins to disk:', reason);
+  console.error('Unhandled rejection, flushing personal bests to disk:', reason);
   try { persistPBsSyncAtomic(); } catch (e) { console.error('Failed saving PBs during unhandledRejection:', e); }
-  try { persistWinsSyncAtomic(); } catch (e) { console.error('Failed saving wins during unhandledRejection:', e); }
 });
 
 server.listen(PORT, '0.0.0.0', () => { 
